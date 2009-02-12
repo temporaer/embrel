@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<data>
+	<node id="1" color="0xFF0000" size="5" x="10" y="10">
+		<child id="2" />
+		<child id="3" />
+	</node>
+	<node id="2" color="0x00FF00" size="5" x="20" y="10">
+		<child id="1" />
+		<child id="3" />
+	</node>
+	<node id="3" color="0x0000FF" size="8" x="30" y="10">
+		<child id="1" />
+		<child id="2" />
+	</node>	
+</data>
