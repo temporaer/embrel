@@ -100,7 +100,7 @@ void SDFReader::readInputFiles()
 		L("Reading SDF input file `%s'...", fd.name.c_str());
 		ifstream is(fd.name.c_str());
 		int fcnt = 0;
-		while(readMolekule(is, fd.classid, graphCount++) && fcnt++<800);
+		while(readMolekule(is, fd.classid, graphCount++) && fcnt++<400);
 		L(". %d molecules read.\n", graphCount);
 	}
 	ofstream os("/tmp/erl/graphs.ser");
@@ -111,6 +111,7 @@ void SDFReader::readInputFiles()
 
 bool SDFReader::readMolekule(std::istream& is, int klass, int graphCount)
 {
+	boost::regex whitespace("\\s+");
 	SDFGraph desc;
 	desc.mClassID = klass;
 
@@ -119,16 +120,17 @@ bool SDFReader::readMolekule(std::istream& is, int klass, int graphCount)
 	if(!nextLineMatches(is, ".*OpenBabel.*"))   return false;
 	if(!nextLineMatches(is, "\\s*"))            return false;
 	if(!nextLineMatches(is, ".*V3000"))         return false;
-	if(!nextLineMatches(is, ".*BEGIN	CTAB")) return false;
+	if(!nextLineMatches(is, ".*BEGIN\\s+CTAB")) return false;
 	getline(is, line); // M V30 COUNTS numberAtoms numberBonds 0 0 0
 	boost::trim(line);
 	vector<string> strvec;
-	boost::split( strvec, line, boost::is_any_of("	") );
+	boost::sregex_token_iterator tokit(line.begin(), line.end(), whitespace, -1), tokit_end;
+	copy(tokit, tokit_end, back_inserter(strvec));
 	if(!strvec.size()==8){
 		cerr << "Warning: SDFReader: InputFileFormat Error: input description line `"<<line<<"' has unexpected format."<<endl;
 		return false;
 	}
-	if(!nextLineMatches(is, ".*BEGIN	ATOM")) return false;
+	if(!nextLineMatches(is, ".*BEGIN\\s+ATOM")) return false;
 
 	// create a matrix with numberAtoms size
 	int numberAtoms = boost::lexical_cast<int>(strvec[3]);
@@ -145,7 +147,10 @@ bool SDFReader::readMolekule(std::istream& is, int klass, int graphCount)
 		if(atomCnt == numberAtoms) break;
 		getline(is, line);
 		boost::trim(line);
-		boost::split( strvec, line, boost::is_any_of("	") );
+		strvec.clear();
+		boost::sregex_token_iterator tokit(line.begin(), line.end(), whitespace, -1), tokit_end;
+		copy(tokit, tokit_end, back_inserter(strvec));
+
 		if(strvec.size() < 8){
 			cerr << "Warning: SDFReader: InputFileFormat Error: atom "<<graphCount<<" description line `"<<line<<"' has unexpected format."<<endl;
 			return false;
@@ -153,15 +158,18 @@ bool SDFReader::readMolekule(std::istream& is, int klass, int graphCount)
 		string atomType = strvec[3]; // C or N or...
 		bgl::get(bgl::vertex_name_t(),graph)[*vi] = atomType;
 	}
-	if(!nextLineMatches(is,".*END	ATOM"))return false;
-	if(!nextLineMatches(is,".*BEGIN	BOND"))return false;
+	if(!nextLineMatches(is,".*END\\s+ATOM"))return false;
+	if(!nextLineMatches(is,".*BEGIN\\s+BOND"))return false;
 	
 	// read all bonds
 	for(int i=0;i<numberBonds; i++){
 		getline(is, line);
 		boost::trim(line);
-		boost::split( strvec, line, boost::is_any_of("	") );
-		if(strvec.size() != 6){
+		strvec.clear();
+		boost::sregex_token_iterator tokit(line.begin(), line.end(), whitespace, -1), tokit_end;
+		copy(tokit, tokit_end, back_inserter(strvec));
+
+		if(strvec.size() < 6){
 			cerr << "Warning: SDFReader: InputFileFormat Error: bond description line `"<<line<<"' has unexpected format."<<endl;
 			return false;
 		}
@@ -175,10 +183,35 @@ bool SDFReader::readMolekule(std::istream& is, int klass, int graphCount)
 		bgl::add_edge(atomFrom, atomTo, graph);
 		bgl::get(bgl::get(bgl::bondnum, graph),bgl::edge(atomFrom, atomTo, graph).first) = bondType;
 	}
-	if(!nextLineMatches(is,".*END	BOND"))return false;
-	if(!nextLineMatches(is,".*END	CTAB"))return false;
+	if(!nextLineMatches(is,".*END\\s+BOND"))return false;
+	if(!nextLineMatches(is,".*END\\s+CTAB"))return false;
 	if(!nextLineMatches(is,".*END"))return false;
-	if(!nextLineMatches(is,"\\$\\$\\$\\$"))return false;
+	
+	getline(is,line);
+	regex prop_match(">\\s+<(\\w+)>");
+	boost::cmatch matches;
+	while(line[0] == '>'){ // additional properties
+		boost::trim(line);
+		if(line.size() == 0) break;
+		if(regex_match(line.c_str(),matches,prop_match)){
+			string       propname = matches[1];
+			stringstream propval;
+			while(line.size()>0){
+				getline(is,line);
+				boost::trim(line);
+				propval << line;
+			}
+			desc.mProps[propname] = propval.str();
+		}else{
+			cerr << "Warning: Line `"<<line<<"' does not match expected pattern `> <feature>'"<<endl;
+			return false;
+		}
+		getline(is, line);
+	}
+	if(line != "$$$$"){
+		cerr << "Warning: Line `"<<line<<"' does not match expected pattern `$$$$'"<<endl;
+		return false;
+	}
 
 	stringstream sname;
 	sname << "SDF_class"<<klass<<"_"<<graphCount;

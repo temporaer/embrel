@@ -47,11 +47,13 @@ struct SDFGraph{
 
 		int   mClassID;
 		Graph mGraph;
+		std::map<std::string,std::string> mProps;
 
 		template <class Archive>
 			void serialize(Archive& ar, const unsigned int version){
 				ar & mGraph;
 				ar & mClassID;
+				ar & mProps;
 			}
 };
 
