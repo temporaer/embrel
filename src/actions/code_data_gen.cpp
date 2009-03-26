@@ -257,7 +257,8 @@ void CODE_data_gen::run(){
 	int running_obs_num=0;
 	foreach(observation& o, cr.mObsDesc){ o.mRunningNumber=running_obs_num++;}
 
-	// remove very similar features
+#if 0
+	cout << "remove very similar features..."<<endl;
 	ProgressBar pbpf(cr.getObsFeatMat()->size2() * cr.getObsFeatMat()->size2() / 2 - cr.getObsFeatMat()->size2()/2,"Prefilt");
 	vector<int> colsToDelete;
 	for(int i=0;i<cr.getObsFeatMat()->size2();i++){
@@ -274,8 +275,8 @@ void CODE_data_gen::run(){
 	pbpf.finish();
 
 	cout << "Need to delete "<< colsToDelete.size() << " features."<<endl;
-	exit(0);
-
+	//exit(0);
+#endif
 
 	cr.init_features();
 	CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
