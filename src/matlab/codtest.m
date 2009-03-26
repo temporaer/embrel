@@ -10,7 +10,8 @@ feat_klass = feat_klass / sum(feat_klass(:)); % make probabilities
 feat_feat  = feat_feat / sum(feat_feat(:));   % make probabilities
 %feat_mol   = feat_mol / sum(sum(feat_mol));   % make probabilities
 
-cfg = '/home/sarx/prog/uni/ma/molemb1/config.cfg';
+
+cfg = '/home/sarx/prog/uni/embrel/src/matlab/config.cfg';
 
 cd /home/sarx/prog/uni/embrel/src/third_party/coemb
 %o = struct('n_restarts', 10, 'x_cond', 1, 'x_marg', 'M', 'y_marg', 'M', 'b_fix_psi', 0);
