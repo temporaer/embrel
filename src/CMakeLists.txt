@@ -3,7 +3,7 @@ SET(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/../CMakeModules 
 SET(Boost_ADDITIONAL_VERSIONS "1.34" "1.34.1" "1.35" "1.35.1" "1.36" "1.36.1" )
 
 # General stuff
-PROJECT(EmbRel CXX Fortran)
+PROJECT(EmbRel CXX Fortran C)
 SET(CMAKE_PROJECT_NAME "EmbRel" )
 SET(SERALIGN_SCRIPT_DIR ${CMAKE_BINARY_DIR}/scripts)
 
@@ -57,8 +57,8 @@ link_directories ( ${Boost_LIBRARY_DIRS} )
 include_directories ( ${Boost_INCLUDE_DIRS} configuration )
 
 # uBlas Backend
-FIND_PACKAGE(BLAS REQUIRED)
-FIND_PACKAGE(LAPACK REQUIRED)
+#FIND_PACKAGE(BLAS REQUIRED)
+#FIND_PACKAGE(LAPACK REQUIRED)
 include_directories ( ${LAPACK_INCLUDE_DIRS} )
 link_directories    ( ${LAPACK_LIBRARY_DIRS} )
 FIND_PATH(BOOST_BINDINGS_PATH boost/numeric/bindings/lapack/lapack.hpp PATHS /usr/local/include/boost-numeric-bindings )
