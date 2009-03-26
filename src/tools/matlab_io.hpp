@@ -31,7 +31,7 @@ inline void csv_matrix_out(std::basic_ostream<E, T> &os,ME& m){
         os << s.str().c_str ();
 }
 template<class E, class T, class ME>
-inline void matlab_matrix_out(std::basic_ostream<E, T> &os,const char* name,ME& m){
+inline void matlab_matrix_out(std::basic_ostream<E, T> &os,const char* name, const ME& m){
         typedef typename ME::size_type size_type;
         size_type size1 = m.size1 ();
         size_type size2 = m.size2 ();
