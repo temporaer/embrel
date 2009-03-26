@@ -11,6 +11,7 @@
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/function.hpp>
 #include <boost/ref.hpp>
+#include <boost/array.hpp>
 #include <progressbar.hpp>
 
 #include <boost/archive/binary_oarchive.hpp>
@@ -21,6 +22,8 @@
 #include <boost/numeric/ublas/matrix.hpp>
 
 #include <matlab_io.hpp>
+#include <stats.hpp>
+#include <normalize.hpp>
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -50,17 +53,27 @@ struct cnt_atoms
 };
 
 struct cnt_base{
-	int mCnt[2];
+	vector<int> mCnt;
 	ublas::vector<double> mEmbPos;
 	int mID;
+	float mCoor[2], mColor;
+	float mSize;
 	static int sMaxID;
 	vector<int> mChildIDs;
-	cnt_base(){
-		memset(mCnt,0, sizeof(mCnt));
-		mId = sMaxID ++;
+	int         mParent;
+	cnt_base()
+		:mCnt(5,0)
+	{
+		mID = sMaxID ++;
+	}
+	template <class Archive>
+	void serialize(Archive& ar, const unsigned int version){
+		ar & mID;
+		ar & mParent;
+		ar & mChildIDs;
 	}
 	inline double p_bar(int total_graph_num){ // p(this_feature)
-		int c = accumulate(mCnt, mCnt+sizeof(mCnt)/sizeof(int), 0.0);
+		int c = accumulate(mCnt.begin(), mCnt.end(), 0.0);
 		return (double)c/total_graph_num;
 	}
 	inline double p_bar(int klass, int total_graph_num){ // p(this_feature, klass)
@@ -75,10 +88,11 @@ struct cnt_chain : public cnt_base
 {
 	vector<string>  mA;
 	vector<int>     mE;
-	vector<SDFGraph::Vertex> mVisitedVertices;
-	vector<SDFGraph::Edge>   mVisitedEdges;
+	mutable vector<SDFGraph::Vertex> mVisitedVertices;
+	mutable vector<SDFGraph::Edge>   mVisitedEdges;
 	template <class Archive>
 	void serialize(Archive& ar, const unsigned int version){
+		ar & boost::serialization::base_object<cnt_base>(*this);
 		ar & mA;
 		ar & mE;
 		ar & mCnt;
@@ -87,8 +101,28 @@ struct cnt_chain : public cnt_base
 	cnt_chain(){ }
 	cnt_chain(const vector<string>& a, const vector<int>& e):mA(a), mE(e){ }
 
+	string str()const{
+		int i = 0;
+		stringstream ss;
+		while(i<mA.size()){
+			ss << mA[i];
+			if(i<mE.size()){
+				switch(mE[i]){
+					case 0: ss << "."; break;
+					case 1: ss << "-"; break;
+					case 2: ss << "="; break;
+					default:ss << "?"; break;
+				}
+			}
+			i++;
+		}
+		int cnt = accumulate(mCnt.begin(), mCnt.end(),0.0);
+		ss << "\t" << cnt;
+		return ss.str();
+	}
+
 	template <class V, class G>
-	bool check_v(const V& v, const G& g, size_t i){
+	bool check_v(const V& v, const G& g, size_t i)const{
 		if(i>=mA.size()) return true;
 		if(find(mVisitedVertices.begin(), mVisitedVertices.end(), v) != mVisitedVertices.end())
 			return false;
@@ -107,7 +141,7 @@ struct cnt_chain : public cnt_base
 		return false;
 	}
 	template <class E, class G>
-	bool check_e(const E& e, const G& g, size_t i){
+	bool check_e(const E& e, const G& g, size_t i)const{
 		if(find(mVisitedEdges.begin(), mVisitedEdges.end(), *e) != mVisitedEdges.end()) return false;
 		if(i>=mE.size()) return true;
 		int b = bgl::get(bgl::edge_bondnum_t(),g,*e);
@@ -120,12 +154,18 @@ struct cnt_chain : public cnt_base
 		return res;
 	}
 	template <class V, class G>
+	inline bool operator()(V v, const G& g, int klass)const{
+		if(check_v(v,g, 0)) {
+			return true;
+		}
+		mVisitedEdges.clear();
+		mVisitedVertices.clear();
+		return false;
+	}
+	template <class V, class G>
 	inline bool operator()(V v, const G& g, int klass){
 		if(check_v(v,g, 0)) {
-			if(klass == 0)
-				mCnt[0]++;
-			else
-				mCnt[1]++;
+			mCnt[klass] ++;
 			return true;
 		}
 		mVisitedEdges.clear();
@@ -144,6 +184,37 @@ ostream& operator<<(ostream& o, const cnt_chain& c){
 	}
 	o << ":  "<<c.mCnt[0] <<" / " << c.mCnt[1];
 	return o;
+}
+
+void printCountsToCSV(const char* fn,const SDFReader& sdf_read, const vector<cnt_chain>& css,bool verbose=true){
+	ofstream os(fn);
+
+	ProgressBar pb(sdf_read.size(), "Writing CSV...");
+	int graphidx=0;
+	BOOST_FOREACH(const SDFGraph& gobj, sdf_read){
+		if(verbose) pb.inc();
+		ublas::vector<int> feat_matches(css.size(),0);
+		const SDFGraph::Graph& g = gobj.mGraph;
+		SDFGraph::VertexIterator vit, vit_end;
+		int feat = 0;
+		BOOST_FOREACH(const cnt_chain& f, css){
+			for(tie(vit, vit_end) = bgl::vertices(g); vit!=vit_end; ++vit){
+				if(f(*vit, g,gobj.mClassID)){
+					feat_matches[feat] = 1;
+					break;
+				}
+			}
+			feat++;
+		}
+		os << "graph("<<graphidx++ <<"),";
+		copy(feat_matches.begin(), feat_matches.end(), ostream_iterator<int>(os,","));
+		os << gobj.mClassID << endl;
+	}
+	ofstream featn("/tmp/erl/chains-names.csv");
+	BOOST_FOREACH(const cnt_chain& f, css){
+		featn << f.str() << ":" <<f.mID << ":"<<f.mParent <<endl;
+	}
+	pb.finish();
 }
 
 vector<cnt_chain> 
@@ -173,35 +244,96 @@ getFreqs(const SDFReader& sdf_read, bool verbose, bool force){
 			ce(*eit, g);
 		}
 	}
+#if 0
+	typedef pair<string, int> si_pair;
+	BOOST_FOREACH(si_pair p, ca.mAtoms){
+		cout << p.first << " " << p.second<<endl;
+	}
+	typedef pair<int, int> ii_pair;
+	BOOST_FOREACH(ii_pair p, ce.mEdges){
+		cout << p.first << " " << p.second<<endl;
+	}
+#endif
 
-	list<cnt_chain> lastround;
-	lastround.push_back(cnt_chain(vector<string>(), vector<int>()));
+	vector<cnt_chain*> lastround;
+	cnt_chain dummy_chain = cnt_chain(vector<string>(),vector<int>());
+	lastround.push_back(&dummy_chain);
+	int minFreq = gCfg().getInt("count.min_freq");
+	int maxLevel = gCfg().getInt("count.max_level");
 
 	// create counters for atom-edge pair
 	typedef pair<string, int> sipair;
 	typedef pair<int, int>    iipair;
-	for(int i=0; i<20; i++){
+	for(int i=0; i<maxLevel; i++){
 		list<cnt_chain> tmp;
-		BOOST_FOREACH(const cnt_chain& c_old, lastround){
-			if(c_old.mA.size()>c_old.mE.size()){
+		BOOST_FOREACH(cnt_chain* c_old, lastround){
+			if(c_old->mA.size() -1 == c_old->mE.size()){
 				BOOST_FOREACH(const iipair& pe, ce.mEdges){ // insert edge
-					cnt_chain c(c_old.mA, c_old.mE);
+					cnt_chain c(c_old->mA, c_old->mE);
 					c.mE.push_back(pe.first);
+					c.mParent = c_old->mID;
+					c_old->mChildIDs.push_back(c.mID);
+
 					tmp.push_back(c);
-					c.mA.push_back("*");                    // and arbitrary atom
-					tmp.push_back(c);
+
+					//c = cnt_chain(c_old->mA, c_old->mE);
+					//c.mE.push_back(pe.first);
+					//c.mA.push_back("*");                    // and arbitrary atom
+					//c_old->mChildIDs.push_back(c.mID);
+					//tmp.push_back(c);
 				}
 			}
-			else{
+			else if(c_old->mA.size() == c_old->mE.size()){
 				BOOST_FOREACH(const sipair& pa, ca.mAtoms){
-					cnt_chain c(c_old.mA, c_old.mE);        // insert atom
+					cnt_chain c(c_old->mA, c_old->mE);        // insert atom
 					c.mA.push_back(pa.first);
+					c.mParent = c_old->mID;
+					c_old->mChildIDs.push_back(c.mID);
+
+					// check whether the chain exists (mirrored) already
+					bool found_mirr = false;
+					BOOST_FOREACH (cnt_chain mirr, tmp){
+						bool found_diff = false;
+						int as = mirr.mA.size();
+						int es = mirr.mE.size();
+						for(int i=0;!found_diff && i<as;++i)
+							if(mirr.mA[as-i-1] != c.mA[i])
+								found_diff=true;
+						for(int i=0;!found_diff && i<es;++i){
+							if(mirr.mE[es-i-1] != c.mE[i])
+								found_diff=true;
+						}
+						if(!found_diff){
+							found_mirr = true;
+							//cout << "will not add "<<c.str()<<" bc it mirrors "<<mirr.str()<<endl;
+							break;
+						}
+					}
+					if(found_mirr)
+						continue;
 					tmp.push_back(c);
-					c.mE.push_back(0);                      // and arbitrary edge
-					tmp.push_back(c);
+
+					//c = cnt_chain(c_old->mA, c_old->mE);
+					//c.mA.push_back(pa.first);
+					//c.mE.push_back(0);                      // and arbitrary edge
+					//c_old->mChildIDs.push_back(c.mID);
+					//tmp.push_back(c);
 				}
 			}
 		}
+		if(0){
+		BOOST_FOREACH(cnt_chain& f, tmp){
+			BOOST_FOREACH(string& n, f.mA){
+				cout <<"a:"<< n << " ";
+			}
+			cout <<endl;
+			BOOST_FOREACH(int& n, f.mE){
+				cout <<"e:"<< n << " ";
+			}
+			cout <<endl;
+			cout <<endl;
+		}}
+
 
 		// find all occurrences 
 		ProgressBar pb(sdf_read.size(), (format("CountLevel %d, t:%d")%i%tmp.size()).str());
@@ -209,19 +341,23 @@ getFreqs(const SDFReader& sdf_read, bool verbose, bool force){
 			if(verbose) pb.inc();
 			const SDFGraph::Graph& g = gobj.mGraph;
 			SDFGraph::VertexIterator vit, vit_end;
-			for(tie(vit, vit_end) = bgl::vertices(g); vit!=vit_end; ++vit){
-				BOOST_FOREACH(cnt_chain& f, tmp){
-					if(f(*vit, g,gobj.mClassID)) break;
+			BOOST_FOREACH(cnt_chain& f, tmp){
+				for(tie(vit, vit_end) = bgl::vertices(g); vit!=vit_end; ++vit){
+					if(f(*vit, g,gobj.mClassID)){
+						break;
+					}
 				}
 			}
 		}
 		if(verbose) pb.finish();
 		lastround.clear();
+		ccs.reserve(ccs.size() + tmp.size());
 		// remove non-occurring items from tmp
 		BOOST_FOREACH(cnt_chain& c, tmp){
-			if(c.mCnt[0]+c.mCnt[1]>=6){
+			int cnt = accumulate(c.mCnt.begin(), c.mCnt.end(),0.0);
+			if(cnt>=minFreq){
 				ccs.push_back(c);
-				lastround.push_back(c);
+				lastround.push_back(&ccs.back());
 			}
 		}
 		if(verbose) cout << "Found "<<lastround.size() <<" new entries on level "<<i<<endl;
@@ -246,7 +382,7 @@ getFreqs(const SDFReader& sdf_read, bool verbose, bool force){
 					}
 					if(b1 && b2)  conj.mCnt[gobj.mClassID]++;
 				}
-				if(conj.mCnt[0]+conj.mCnt[1]>10)
+				if(accumulate(conj.mCnt.begin(),conj.mCnt.end(),0.0)>10)
 					tmp.push_back(conj);
 			}
 		}
@@ -274,25 +410,137 @@ getFreqs(const SDFReader& sdf_read, bool verbose, bool force){
 }
 
 
+template<class T>
+void
+determineChildren(T& cont, cnt_base& b){
+	bool addedSth = true;
+	while(addedSth){
+		addedSth = false;
+		BOOST_FOREACH(int id, b.mChildIDs){
+			BOOST_FOREACH(const cnt_base& c, cont){
+				if(c.mID != id) continue;
+				vector<int> add;
+				BOOST_FOREACH(int nid, c.mChildIDs){
+					if(find(b.mChildIDs.begin(), b.mChildIDs.end(), nid) != b.mChildIDs.end())
+						continue;
+					if(find(add.begin(), add.end(), nid) != add.end())
+						continue;
+					add.push_back(nid);
+					addedSth = true;
+				}
+				copy(add.begin(),add.end(),back_inserter(b.mChildIDs));
+			}
+		}
+	}
+	vector<int> children;
+	BOOST_FOREACH(int id, b.mChildIDs){
+		BOOST_FOREACH(const cnt_base& c, cont){
+			if(c.mID != id) continue;
+			children.push_back(id);
+			break;
+		}
+	}
+	b.mChildIDs = children;
+}
+
+template<class T>
+void
+makeXML(T& cont){
+	ifstream is("/tmp/erl/phix.txt");
+	ofstream os("/tmp/erl/points.xml");
+	ExactDescriptiveStatistics xstats("xstats"), ystats("ystats"), cstats("cstats"), sstats("sstats");
+	double x, y, c;
+	BOOST_FOREACH(cnt_base& b, cont){
+		is >>x>>y>>c;
+		b.mCoor[0]= x;  xstats += x;
+		b.mCoor[1]= y;  ystats += y;
+		b.mColor  = c;  cstats += c;
+		b.mSize   = log(log(accumulate(b.mCnt.begin(), b.mCnt.end(), 0.0)));
+		sstats += b.mSize;
+	}
+	cout << xstats<<ystats<<cstats<<endl;
+	
+	// normalize
+	BOOST_FOREACH(cnt_base& b, cont){
+		b.mCoor[0] =       normalize_minmax(b.mCoor[0], 0.0, 800.0, xstats);
+		b.mCoor[1] = 600 - normalize_minmax(b.mCoor[1], 0.0, 600.0, ystats);
+		b.mColor   =       normalize_minmax(b.mColor,   0.0, 255.0, cstats);
+		b.mSize    =       normalize_minmax(b.mSize,    1.0, 7.0,   sstats);
+	}
+
+	// print
+	os << "<?xml version='1.0' encoding='latin1' ?>"<<endl;
+	os << "<data>"<<endl;
+	BOOST_FOREACH(cnt_base& b, cont){
+		os  << format("<node id='%d' color='0x10%02X10' size='%.0d' x='%.0f' y='%.0f'>")
+			                     %b.mID     %((int)b.mColor)   %max(1.0,round(b.mSize))   %b.mCoor[0] %b.mCoor[1]
+			<<endl;
+		BOOST_FOREACH(int cid, b.mChildIDs){
+			os << format("<child id='%d' />") % cid<<endl;
+		}
+		int maxc = distance(b.mCnt.begin(), max_element(b.mCnt.begin(), b.mCnt.end()));
+		os << format("<child id='class%d' />") % maxc<<endl;
+		os << "</node>"<<endl;
+	}
+
+	ifstream classis("/tmp/erl/psiy.txt");
+	int i=0;
+	while(!classis.eof()){
+		classis >> x >> y;
+		if(classis.eof()) break;
+		x =       normalize_minmax(x, 0.0, 800.0, xstats);
+		y = 600 - normalize_minmax(y, 0.0, 600.0, ystats);
+		os  << format("<node id='class%1$d' color='0x%2$02X%2$02X%2$02X' size='%3$d' x='%4$.0f' y='%5$.0f'>")
+			                    %i            %(i*40)                        %15      %x         %y
+			<<endl;
+		os << "</node>"<<endl;
+		i++;
+	}
+	
+	os << "</data>"<<endl;
+}
+
 void Count::operator()()
 {
 	SDFReader sdf_read;
 	sdf_read.configure();
+if(1){
+	// assign classes based on properties
+	BOOST_FOREACH(SDFGraph& gobj, sdf_read){
+		if(gobj.mProps["ActivityCategory_ER_RBA"] == "active strong")
+			gobj.mClassID = 4;
+		if(gobj.mProps["ActivityCategory_ER_RBA"] == "active medium")
+			gobj.mClassID = 3;
+		if(gobj.mProps["ActivityCategory_ER_RBA"] == "active weak")
+			gobj.mClassID = 2;
+		if(gobj.mProps["ActivityCategory_ER_RBA"] == "slight binder")
+			gobj.mClassID = 1;
+		if(gobj.mProps["ActivityCategory_ER_RBA"] == "inactive")
+			gobj.mClassID = 0;
+	}
+}
 	bool force_reread = gCfg().getBool("count.recount");
+	fs::path pxy_fn   = gCfg().getString("output-dir");
 	vector<cnt_chain> freqs = getFreqs(sdf_read, mVerbose, force_reread);
+	printCountsToCSV((pxy_fn/"chains.csv").string().c_str(),sdf_read,freqs);
 
-	fs::path pxy_fn = gCfg().getString("output-dir");
 	pxy_fn /= "pxy.m";
 	ofstream pxy_os(pxy_fn.string().c_str());
 	
-	ublas::matrix<double> pxy(2,freqs.size());
+	ublas::matrix<double> pxy(freqs.front().mCnt.size(),freqs.size());
 	int i=0;
 	BOOST_FOREACH(const cnt_chain& c, freqs){
-		pxy(0,i) = c.mCnt[0];
-		pxy(1,i) = c.mCnt[1];
+		for(unsigned int j=0;j<c.mCnt.size();j++)
+			pxy(j,i) = c.mCnt[j];
 		i++;
 	}
 	matlab_matrix_out(pxy_os, "pxy_data", pxy);
+	if(!force_reread){
+		BOOST_FOREACH(cnt_chain& c, freqs){
+			determineChildren(freqs, c);
+		}
+		makeXML(freqs);
+	}
 }
 
 void Count::configure()
