@@ -288,7 +288,7 @@ void CODE_data_gen::run(){
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
-		chdir("/home/sarx/prog/uni/ma/molemb1/matlab");
+		chdir("../../src/matlab");
 		const char* matlab_out = "/tmp/matlab.out";
 		int res = system(
 				(boost::format("matlab -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
