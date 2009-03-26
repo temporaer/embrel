@@ -9,6 +9,6 @@ include_directories(
 	. 
 	)
 
-SET(SRC stats.hpp stats.cpp)
+SET(SRC stats.hpp stats.cpp csvreader.hpp csvreader.cpp)
 
 add_library( erltools SHARED ${SRC} )
