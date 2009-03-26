@@ -16,9 +16,18 @@ using namespace std;
 
 
 int main(int argc, char* argv[]){
-	void* err;
-	err = dlopen("graphs/libgraphs.so",               RTLD_LAZY); I(err);
-	err = dlopen("actions/libactions.so",             RTLD_LAZY); I(err);
+	void* handle;
+	handle = dlopen("graphs/libgraphs.so",               RTLD_LAZY); 
+	if (!handle) {
+		cerr << "Cannot open library: " << dlerror() << '\n';
+		return 1;
+	}
+
+	handle = dlopen("actions/libactions.so",             RTLD_LAZY); 
+	if (!handle) {
+		cerr << "Cannot open library: " << dlerror() << '\n';
+		return 1;
+	}
 
 	gCfg().parsecfg(argc,argv);
 
