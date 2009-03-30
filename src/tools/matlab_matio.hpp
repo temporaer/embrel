@@ -2,8 +2,10 @@
 #define __MATLABMATIO_HPP__
 
 
-#include	<boost/static_assert.hpp>
+#include	<climits>
+#include	<limits>
 #include	<boost/numeric/ublas/fwd.hpp>
+#include	<boost/static_assert.hpp>
 #include	<iostream>
 #include	<string>
 #include 	<matio.h>
@@ -40,6 +42,17 @@ template <class T>
 inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<T>& m){
 	//assert(false);
 	BOOST_STATIC_ASSERT(sizeof(T)==0);
+	return 1;
+}
+template <>
+inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<float>& m){
+	assert(std::numeric_limits<float>::digits == 16);
+	return matlab_matrix_out_helper<MAT_C_SINGLE, MAT_T_SINGLE>(filen,name,m);
+}
+template <>
+inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<int>& m){
+	assert(std::numeric_limits<int>::digits == 32);
+	return matlab_matrix_out_helper<MAT_C_INT16, MAT_T_INT16>(filen,name,m);
 }
 template <>
 inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<double>& m){
