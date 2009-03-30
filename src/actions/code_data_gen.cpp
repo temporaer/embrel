@@ -386,7 +386,7 @@ void CODE_data_gen::run(){
 	}
 	pb2.finish();
 
-	int maxiter = 100;
+	int maxiter = gCfg().getInt("code.hebb_iter");
 	ProgressBar pb3(maxiter,"hebb");
 	ExactDescriptiveStatistics sc("selectcrit");
 	foreach(feature& f, cr.mFeaDesc){ sc += f.mSelectCrit2; }
@@ -424,7 +424,7 @@ void CODE_data_gen::run(){
 	sort(fvec.begin(),fvec.end(), 
 			ll::bind(&feature::mSelectCrit2,ll::_1) <
 			ll::bind(&feature::mSelectCrit2,ll::_2));
-	int threshidx = (int)(gCfg().getFloat("code.view_sd_fact") * cr.mFeaDesc.size());
+	int threshidx = (int)(gCfg().getFloat("code.delete_perc") * cr.mFeaDesc.size());
 	float thresh = fvec[threshidx]->mSelectCrit2;
 	int ignoredcnt=0;
 	foreach(feature& f, cr.mFeaDesc){ 
@@ -448,12 +448,14 @@ void CODE_data_gen::run(){
 	}
 	float img_width  = gCfg().getFloat("code.img_width");
 	float img_height = gCfg().getFloat("code.img_height");
+	float size_fact  = gCfg().getFloat("code.size_fact");
+	float pos_rand   = gCfg().getFloat("code.pos_rand");
 	foreach(feature& f, cr.mFeaDesc){
 		if(f.mIgnore) continue;
-		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat);
-		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat);
+		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat) + (2*(drand48()-0.5))*pos_rand;
+		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat) + (2*(drand48()-0.5))*pos_rand;
 		f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
-		f.mSize = normalize_minmax(f.mSize,8.0f,20.0f,sstat);
+		f.mSize = normalize_minmax(f.mSize,size_fact*4.0f,size_fact*10.0f,sstat);
 	}
 
 	fs::path pointsxml("/tmp/erl/points.xml");
