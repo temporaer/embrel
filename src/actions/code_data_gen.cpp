@@ -326,17 +326,11 @@ void CODE_data_gen::run(){
 	CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
 
 	cout << "writing matrices to matlab file..."<<flush;
-	fs::path code_data("/tmp/code_data.m");
-	fs::ofstream code_data_stream(code_data);
-	if(!code_data_stream){
-		throw runtime_error(string("could not open output file!"));
-	}
-	//matlab_matrix_convert_out<int>(code_data_stream, "feat_feat", feafea);
-	//matlab_matrix_convert_out<int>(code_data_stream, "feat_klass", ublas::trans(obsfea));
-	matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea);
+	if(matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea))
+		throw runtime_error(string("could not write feat_feat"));
 	CoocReader::matrix_itype tmpmat(ublas::trans(obsfea));
-	matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat);
-	code_data_stream.close();
+	if(matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat))
+		throw runtime_error(string("could not write feat_klass"));
 	cout <<"done."<<endl;
 
 	// call matlab.
