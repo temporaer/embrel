@@ -43,9 +43,9 @@ struct feature {
 class CoocReader : public CSVReader{
 		
 	public:
-		typedef boost::numeric::ublas::matrix<unsigned char>    matrix_itype;
-		typedef boost::numeric::ublas::coordinate_matrix<unsigned char> matrix_dtype;
-		//typedef boost::numeric::ublas::matrix<int> matrix_dtype;
+		typedef boost::numeric::ublas::matrix<double> matrix_itype;
+		typedef boost::numeric::ublas::matrix<double> matrix_dtype;
+		//typedef boost::numeric::ublas::matrix<unsigned char> matrix_dtype;
 		typedef boost::shared_ptr<matrix_itype> matrix_pitype;
 		typedef boost::shared_ptr<matrix_dtype> matrix_pdtype;
 		typedef observation::klass_type        klass_type;
