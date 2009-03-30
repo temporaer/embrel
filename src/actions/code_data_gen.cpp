@@ -7,9 +7,11 @@
 #include <boost/numeric/ublas/symmetric.hpp>
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/operation.hpp>
 
 #include <boost/assign.hpp>
 
+#include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -113,6 +115,8 @@ void CoocReader::init_features()
 
 	ProgressBar pb1(mObsFeatMat->size2(),"feat props");
 	ExactDescriptiveStatistics estat("Entropy");
+	boost::regex key_re1("\\bkey\\(A\\),\\s*");
+	boost::regex key_re2("\\bA,\\s*");
 	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
 		pb1.inc();
 		feature f;
@@ -126,7 +130,10 @@ void CoocReader::init_features()
 		f.mId       = tmp[0];
 		f.mFromId   = tmp.size()>1 ? tmp[1] : "_";
 		f.mTargetId = tmp.size()>2 ? tmp[2] : "_";
+		f.mId = boost::regex_replace(f.mId, key_re1, "");
+		f.mId = boost::regex_replace(f.mId, key_re2, "");
 
+		f.mComplexity = f.mId.length();
 
 		// class count
 		ublas::matrix_column<matrix_itype> mc(*mObsFeatMat,i);
