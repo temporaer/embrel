@@ -27,6 +27,7 @@ struct feature {
 	std::string mTargetId;
 	boost::numeric::ublas::vector<double> mPos;
 	std::map<observation::klass_type, int> mKlassCount;
+	float       mComplexity;
 	int         mRunningNumber;
 	int         mFreq;
 	double      mEntropy;
