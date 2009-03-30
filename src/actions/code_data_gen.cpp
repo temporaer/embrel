@@ -506,9 +506,10 @@ void CODE_data_gen::run(){
 	xml << "</data>"<<endl;
 	xml.close();
 
-	system("cd /home/sarx/prog/uni/ma/molemb1 ; perl pointsxml2svg.pl /tmp/erl/points.xml");
+
+	system("cd /home/schulzha/checkout/embrel ; perl pointsxml2svg.pl /tmp/erl/points.xml");
 	system("convert /tmp/erl/points-static.svg /tmp/erl/points.png");
-	system("/usr/bin/play -q /usr/lib/xcdroast/sound/test.wav 2>&1>/dev/null");
+	//system("/usr/bin/play -q /usr/lib/xcdroast/sound/test.wav 2>&1>/dev/null");
 }
 
 void CODE_data_gen::writeObsChildren(ostream& os, CoocReader&cr, int obsnr)
