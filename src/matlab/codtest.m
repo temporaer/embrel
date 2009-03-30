@@ -7,8 +7,8 @@ cd /tmp;
 %code_data;
 load code_data;
 
-feat_klass = feat_klass / sum(feat_klass(:)); % make probabilities
-feat_feat  = feat_feat / sum(feat_feat(:));   % make probabilities
+feat_klass = double(feat_klass) / sum(feat_klass(:)); % make probabilities
+feat_feat  = double(feat_feat) / sum(feat_feat(:));   % make probabilities
 %feat_mol   = feat_mol / sum(sum(feat_mol));   % make probabilities
 
 
