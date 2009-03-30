@@ -5,6 +5,7 @@
 	import flash.events.MouseEvent;
 	import flash.ui.Mouse;
 	import flash.geom.ColorTransform;
+
 	
 	/**
 	 * Punkt
@@ -18,6 +19,7 @@
 		private var color:Number = 0;
 		private var id:uint = 0;
 		private var size:uint = 0;
+		private var objtype:Number = 0;
 		
 		
 		public function xPoint(nodepoint:XML) 
@@ -35,14 +37,25 @@
 			this.color = node.@color;
 			this.name = node.@id;
 			this.size = node.@size;
+			this.objtype = node.@objtype;
 			this.x = node.@x;
 			this.y = node.@y;
 			for ( var i:uint = 0; i < node.child.length(); i++ )
 			{
-				this.references.push( node.child[i].@id );
+				this.references.push( new xRef(String(node.child[i].@id), Number(node.child[i].@color)) );
 			}
-			this.graphics.beginFill( this.color, 1 );
-			this.graphics.drawCircle( 0, 0, this.size * 0.5 );			
+			var alpha:Number = 0.8;
+			this.graphics.beginFill( this.color, alpha );
+			if(this.objtype == 0){
+			    this.graphics.drawCircle( 0, 0, this.size );			
+			}else {
+			    //this.graphics.drawRect( 0, 0, this.size, this.size );			
+			    this.graphics.lineStyle(1, this.color, 100*alpha);
+			    this.graphics.moveTo(-this.size, -this.size/2);
+			    this.graphics.lineTo(0,this.size/2);
+			    this.graphics.lineTo(this.size,-this.size/2);
+			}
+			this.graphics.endFill();
 		}
 		
 		public function tint(color:Number = -1):void
@@ -63,7 +76,10 @@
 		{
 			for ( var i:uint = 0; i < this.references.length; i++)
 			{				
-				(this.parent.getChildByName( String(this.references[ i ] )) as xPoint).tint( this.color );
+				/*
+				 *(this.parent.getChildByName( String(this.references[ i ] )) as xPoint).tint( this.color );
+				 */
+				(this.parent.getChildByName( this.references[ i ].mId ) as xPoint).tint( this.references[i].mColor );
 			}
 		}
 		
@@ -73,17 +89,8 @@
 		{
 			for ( var i:uint = 0; i < this.references.length; i++)
 			{
-				(this.parent.getChildByName( this.references[ i ] ) as xPoint).tint();
+				(this.parent.getChildByName( this.references[ i ].mId ) as xPoint).tint();
 			}
 		}
-
-		
-		
-		
-
-		
-
-		
 	}
-	
 }
