@@ -169,16 +169,20 @@ void CoocReader::init_features()
 		float beta      = 0.2f;
 		f.mFMeasure     = (1+beta*beta) * (precision * recall) / (beta*beta*precision + recall);
 
+		f.mId           = (boost::format("%s p:%1.2f r:%1.2f") % f.mId % precision % recall).str();
+
 		// color factor
-		f.mColorFact = (float)f.mKlassCount[f.mBestKlass] / (float)f.mFreq;
+		f.mColorFact = precision;
 
 		// size 
+		f.mSize        = recall;
+		//f.mSize      = (double) log((double)f.mFreq);
 		//f.mSize      = (double)f.mEntropy * log((double)f.mFreq);
-		f.mSize      = f.mFMeasure;
+		//f.mSize      = f.mFMeasure;
 
 		// selection criterion
-		//f.mSelectCrit = f.mFreq / log(f.mId.length());
-		f.mSelectCrit = f.mFMeasure / f.mId.length();
+		//f.mSelectCrit = f.mFreq / log(f.mComplexity);
+		f.mSelectCrit = f.mFMeasure / f.mComplexity;
 
 		f.mIgnore = false;
 		f.mRunningNumber = running_feat_num++;
