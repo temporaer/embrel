@@ -244,13 +244,17 @@ void CoocReader::init_features()
 #endif
 
 	unsigned int fea_num = mFeaDesc.size();
-	mFeatFeatMat.reset(new matrix_dtype(fea_num,fea_num,2*fea_num/3)); // last param relevant only for sparse matrices, otherwise overwritten by zero_matrix!
+	cout << "creating f x f matrix"<<endl;
+	mFeatFeatMat.reset(new matrix_dtype(fea_num,fea_num)); 
+	cout << "setting f x f matrix to zero"<<endl;
 	*mFeatFeatMat = ublas::zero_matrix<double>(fea_num,fea_num);
+	cout << "done."<<endl;
 	
 	if(!gCfg().getBool("code.dont_run_code")){
 #if 1
-		cout << "f x f..." ;
+		cout << "f x f... multiplication" <<flush;
 		ublas::noalias(*mFeatFeatMat) = ublas::prod(ublas::trans(*mObsFeatMat), *mObsFeatMat);
+		//ublas::axpy_prod(ublas::trans(*mObsFeatMat), *mObsFeatMat, *mFeatFeatMat, true);
 		cout << "done."<<endl;
 #else
 		ProgressBar pb(fea_num*fea_num/2+fea_num/2, "f x f");
