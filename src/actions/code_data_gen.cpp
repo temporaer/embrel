@@ -64,6 +64,7 @@ CoocReader::CoocReader()
 void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfields){
 	if(lidx==0 && idx==0){
 		mObsFeatMat.reset(new matrix_itype(mLines,numfields-2));
+		*mObsFeatMat = ublas::zero_matrix<int>(mLines,numfields-2);
 	}
 	if(0);
 	else if(idx==0){
