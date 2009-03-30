@@ -10,6 +10,7 @@ SET(SERALIGN_SCRIPT_DIR ${CMAKE_BINARY_DIR}/scripts)
 # find errors/eclipse auto-incl-dir discovery
 #SET(CMAKE_VERBOSE_MAKEFILE ON)
 
+ADD_DEFINITIONS(-DWITHOUT_NANA)
 
 # Packaging
 SET(CPACK_PACKAGE_NAME                EmbRel )
@@ -64,6 +65,10 @@ link_directories    ( ${LAPACK_LIBRARY_DIRS} )
 FIND_PATH(BOOST_BINDINGS_PATH boost/numeric/bindings/lapack/lapack.hpp PATHS /usr/local/include/boost-numeric-bindings )
 include_directories( ${BOOST_BINDINGS_PATH} )
 
+FIND_PACKAGE(Matio REQUIRED)
+include_directories ( ${MATIO_INCLUDE_DIRS} )
+link_directories    ( ${MATIO_LIBRARY_DIRS} )
+
 # Nana
 find_package( Nana )
 include_directories ( ${NANA_INCLUDE_DIRS} )
@@ -99,6 +104,7 @@ if(DOXYGEN_EXECUTABLE)
 endif(DOXYGEN_EXECUTABLE)
 
 MESSAGE(STATUS "Boost Libs: ${Boost_LIBRARIES} ${Boost_LIBRARY_DIRS}" )
+MESSAGE(STATUS "MATIO Libs: ${MATIO_LIBRARIES} ${MATIO_LIBRARY_DIRS}" )
 add_executable( erl main.cpp )
 FIND_PROGRAM( CTAGS_BINARY ctags )
 IF( CTAGS_BINARY )
@@ -114,8 +120,8 @@ FIND_PROGRAM( MKID_BINARY mkid )
 #ENDIF( MKID_BINARY )
 target_link_libraries(erl
 	${Boost_LIBRARIES}  
-	${NANA_LIBRARIES} 
 	${LAPACK_LIBRARIES} 
+	${MATIO_LIBRARIES} 
 	dl
 	erltools
 	graphs

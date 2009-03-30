@@ -7,9 +7,11 @@
 #include <boost/numeric/ublas/symmetric.hpp>
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/operation.hpp>
 
 #include <boost/assign.hpp>
 
+#include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -31,6 +33,7 @@
 
 #include <factory/factory.h>
 #include <matlab_io.hpp>
+#include <matlab_matio.hpp>
 #include <stats.hpp>
 #include <normalize.hpp>
 #include <progressbar.hpp>
@@ -64,6 +67,7 @@ CoocReader::CoocReader()
 void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfields){
 	if(lidx==0 && idx==0){
 		mObsFeatMat.reset(new matrix_itype(mLines,numfields-2));
+		*mObsFeatMat = ublas::zero_matrix<int>(mLines,numfields-2);
 	}
 	if(0);
 	else if(idx==0){
@@ -82,7 +86,11 @@ void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfiel
 		mObsDesc += mCurrObsDesc;
 	}
 	else{
-		(*mObsFeatMat)(lidx,idx-1) = boost::lexical_cast<int>(s);
+		int i= boost::lexical_cast<int>(s);
+		if(i>0){
+			(*mObsFeatMat)(lidx,idx-1) = i;
+		//	mObsFeatMat->push_back(lidx,idx-1,i);
+		}
 	}
 }
 
@@ -108,6 +116,8 @@ void CoocReader::init_features()
 
 	ProgressBar pb1(mObsFeatMat->size2(),"feat props");
 	ExactDescriptiveStatistics estat("Entropy");
+	boost::regex key_re1("\\bkey\\(A\\),\\s*");
+	boost::regex key_re2("\\bA,\\s*");
 	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
 		pb1.inc();
 		feature f;
@@ -121,7 +131,10 @@ void CoocReader::init_features()
 		f.mId       = tmp[0];
 		f.mFromId   = tmp.size()>1 ? tmp[1] : "_";
 		f.mTargetId = tmp.size()>2 ? tmp[2] : "_";
+		f.mId = boost::regex_replace(f.mId, key_re1, "");
+		f.mId = boost::regex_replace(f.mId, key_re2, "");
 
+		f.mComplexity = f.mId.length();
 
 		// class count
 		ublas::matrix_column<matrix_itype> mc(*mObsFeatMat,i);
@@ -157,16 +170,20 @@ void CoocReader::init_features()
 		float beta      = 0.2f;
 		f.mFMeasure     = (1+beta*beta) * (precision * recall) / (beta*beta*precision + recall);
 
+		f.mId           = (boost::format("%s p:%1.2f r:%1.2f") % f.mId % precision % recall).str();
+
 		// color factor
-		f.mColorFact = (float)f.mKlassCount[f.mBestKlass] / (float)f.mFreq;
+		f.mColorFact = precision;
 
 		// size 
+		f.mSize        = recall;
+		//f.mSize      = (double) log((double)f.mFreq);
 		//f.mSize      = (double)f.mEntropy * log((double)f.mFreq);
-		f.mSize      = f.mFMeasure;
+		//f.mSize      = f.mFMeasure;
 
 		// selection criterion
-		//f.mSelectCrit = f.mFreq / log(f.mId.length());
-		f.mSelectCrit = f.mFMeasure / f.mId.length();
+		//f.mSelectCrit = f.mFreq / log(f.mComplexity);
+		f.mSelectCrit = f.mFMeasure / f.mComplexity;
 
 		f.mIgnore = false;
 		f.mRunningNumber = running_feat_num++;
@@ -175,8 +192,51 @@ void CoocReader::init_features()
 	}
 	pb1.finish();
 
+#if 1
+	cout << "remove very similar features..."<<endl;
+	ProgressBar pbpf(mObsFeatMat->size2() * mObsFeatMat->size2() / 2 - mObsFeatMat->size2()/2,"Prefilt");
+	vector<int> colsToDelete;
+	for(int i=0;i<mObsFeatMat->size2();i++){
+		for(int j=i+1;j<mObsFeatMat->size2();j++)
+		{
+			ublas::vector<double> v1 = ublas::column(*mObsFeatMat,i);
+			ublas::vector<double> v2 = ublas::column(*mObsFeatMat,j);
+			double f = ublas::norm_1( v1 - v2 );
+			if(f<1){
+				colsToDelete += i;
+				if(mFeaDesc[i].mComplexity < mFeaDesc[j].mComplexity)
+					swap(mFeaDesc[i],mFeaDesc[j]);
+				mFeaDesc[i].mRunningNumber=-1; // mark for deletion
+				break;
+			}
+		}
+		pbpf.inc(mObsFeatMat->size2()-i);
+	}
+	pbpf.finish();
+	cout << "Need to delete "<< colsToDelete.size() << " features."<<endl;
+	cout << "New feature number: "<< mObsFeatMat->size2()-colsToDelete.size() << " features."<<endl;
+	cout << "deleting..."<<flush;
+	mFeaDesc.erase(
+		std::remove_if(mFeaDesc.begin(),mFeaDesc.end(),ll::bind(&feature::mRunningNumber,ll::_1)<0),mFeaDesc.end());
+	matrix_pitype tmp(new matrix_itype(mObsFeatMat->size1(),mFeaDesc.size()));
+	int newidx=0;
+	for(int i=0;i<mObsFeatMat->size1();i++){
+		if(colsToDelete.end() != find(colsToDelete.begin(),colsToDelete.end(),i))
+			continue;
+		ublas::column(*tmp,newidx++) = ublas::column(*mObsFeatMat,i);
+	}
+	mObsFeatMat = tmp;
+	// renumber everything
+	newidx=0;
+	foreach(feature& f, mFeaDesc){ f.mRunningNumber=newidx++; }
+	cout << "done."<<endl;
+	
+	//exit(0);
+#endif
+
+
 #if 0
-	// weight cooccurrence by entropy
+	cout << "weight cooccurrence by entropy"<<endl;
 	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
 		ublas::matrix_column<matrix_itype> col(*mObsFeatMat,i);
 		col *= normalize_minmax(mFeaDesc[i].mEntropy,0.0,1.0,estat);
@@ -185,13 +245,17 @@ void CoocReader::init_features()
 #endif
 
 	unsigned int fea_num = mFeaDesc.size();
-	mFeatFeatMat.reset(new matrix_dtype(fea_num,fea_num,2*fea_num/3)); // last param relevant only for sparse matrices, otherwise overwritten by zero_matrix!
+	cout << "creating f x f matrix"<<endl;
+	mFeatFeatMat.reset(new matrix_dtype(fea_num,fea_num)); 
+	cout << "setting f x f matrix to zero"<<endl;
 	*mFeatFeatMat = ublas::zero_matrix<double>(fea_num,fea_num);
+	cout << "done."<<endl;
 	
 	if(!gCfg().getBool("code.dont_run_code")){
 #if 1
-		cout << "f x f..." ;
+		cout << "f x f... multiplication" <<flush;
 		ublas::noalias(*mFeatFeatMat) = ublas::prod(ublas::trans(*mObsFeatMat), *mObsFeatMat);
+		//ublas::axpy_prod(ublas::trans(*mObsFeatMat), *mObsFeatMat, *mFeatFeatMat, true);
 		cout << "done."<<endl;
 #else
 		ProgressBar pb(fea_num*fea_num/2+fea_num/2, "f x f");
@@ -257,41 +321,30 @@ void CODE_data_gen::run(){
 	int running_obs_num=0;
 	foreach(observation& o, cr.mObsDesc){ o.mRunningNumber=running_obs_num++;}
 
-	// remove very similar features
-	ProgressBar pbpf(cr.getObsFeatMat()->size2() * cr.getObsFeatMat()->size2() / 2 - cr.getObsFeatMat()->size2()/2,"Prefilt");
-	vector<int> colsToDelete;
-	for(int i=0;i<cr.getObsFeatMat()->size2();i++){
-		for(int j=i+1;j<cr.getObsFeatMat()->size2();j++)
-		{
-			int f = ublas::norm_1(
-					ublas::column(*cr.getObsFeatMat(),i)-
-					ublas::column(*cr.getObsFeatMat(),j));
-			if(f>5)
-				colsToDelete += j;
-		}
-		pbpf.inc(cr.getObsFeatMat()->size2()-i);
-	}
-	pbpf.finish();
-
-	cout << "Need to delete "<< colsToDelete.size() << " features."<<endl;
-	exit(0);
-
-
 	cr.init_features();
 	CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
 	CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
 
+	cout << "writing matrices to matlab file..."<<flush;
 	fs::path code_data("/tmp/code_data.m");
 	fs::ofstream code_data_stream(code_data);
-	matlab_matrix_out(code_data_stream, "feat_feat", feafea);
-	matlab_matrix_out(code_data_stream, "feat_klass", ublas::trans(obsfea));
+	if(!code_data_stream){
+		throw runtime_error(string("could not open output file!"));
+	}
+	//matlab_matrix_convert_out<int>(code_data_stream, "feat_feat", feafea);
+	//matlab_matrix_convert_out<int>(code_data_stream, "feat_klass", ublas::trans(obsfea));
+	matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea);
+	CoocReader::matrix_itype tmpmat(ublas::trans(obsfea));
+	matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat);
+	code_data_stream.close();
+	cout <<"done."<<endl;
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
 		chdir("../../src/matlab");
 		const char* matlab_out = "/tmp/matlab.out";
 		int res = system(
-				(boost::format("matlab -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
+				(boost::format("matlab -glnx86 -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
 		if(res == -1)
 			throw runtime_error(std::string("Matlab execution failed!"));
 		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
@@ -333,7 +386,7 @@ void CODE_data_gen::run(){
 	}
 	pb2.finish();
 
-	int maxiter = 100;
+	int maxiter = gCfg().getInt("code.hebb_iter");
 	ProgressBar pb3(maxiter,"hebb");
 	ExactDescriptiveStatistics sc("selectcrit");
 	foreach(feature& f, cr.mFeaDesc){ sc += f.mSelectCrit2; }
@@ -371,7 +424,7 @@ void CODE_data_gen::run(){
 	sort(fvec.begin(),fvec.end(), 
 			ll::bind(&feature::mSelectCrit2,ll::_1) <
 			ll::bind(&feature::mSelectCrit2,ll::_2));
-	int threshidx = (int)(gCfg().getFloat("code.view_sd_fact") * cr.mFeaDesc.size());
+	int threshidx = (int)(gCfg().getFloat("code.delete_perc") * cr.mFeaDesc.size());
 	float thresh = fvec[threshidx]->mSelectCrit2;
 	int ignoredcnt=0;
 	foreach(feature& f, cr.mFeaDesc){ 
@@ -395,12 +448,14 @@ void CODE_data_gen::run(){
 	}
 	float img_width  = gCfg().getFloat("code.img_width");
 	float img_height = gCfg().getFloat("code.img_height");
+	float size_fact  = gCfg().getFloat("code.size_fact");
+	float pos_rand   = gCfg().getFloat("code.pos_rand");
 	foreach(feature& f, cr.mFeaDesc){
 		if(f.mIgnore) continue;
-		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat);
-		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat);
+		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat) + (2*(drand48()-0.5))*pos_rand;
+		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat) + (2*(drand48()-0.5))*pos_rand;
 		f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
-		f.mSize = normalize_minmax(f.mSize,8.0f,20.0f,sstat);
+		f.mSize = normalize_minmax(f.mSize,size_fact*4.0f,size_fact*10.0f,sstat);
 	}
 
 	fs::path pointsxml("/tmp/erl/points.xml");
