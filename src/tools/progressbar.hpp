@@ -5,13 +5,13 @@
 
 class ProgressBar {
   public:
-    ProgressBar(int i=100, const std::string& desc = "Working" ,int cwidth=30)
+    ProgressBar(long int i=100, const std::string& desc = "Working" ,int cwidth=30)
       :ivpDesc(desc),
        ivMax(i),
        ivCurrent(0),
        ivClearLen(0),
        ivCWidth(cwidth),
-       ivCPos(0)
+       ivCPos(-1)
     {
       display();
     }
@@ -25,7 +25,7 @@ class ProgressBar {
     }
     inline void finish(){
       std::cout << "\r";
-      for(uint i=0;i<ivCWidth + ivClearLen + 10 + ivpDesc.size(); i++)
+      for(uint i=0;i<ivCWidth + ivClearLen + 20 + ivpDesc.size(); i++)
 	std::cout << " ";
       std::cout<<"\r"<<std::flush;
     }
@@ -34,15 +34,15 @@ class ProgressBar {
     }
   private:
 	std::string ivpDesc;
-    int ivMax;
-    int ivCurrent;
+    long int ivMax;
+    long int ivCurrent;
     uint ivClearLen;
 
     int ivCWidth;
     int ivCPos;
 
     void display(char* info=""){
-      int newpos = (int)(ivCurrent * ivCWidth / (float) ivMax);
+      int newpos = (int)((double)ivCurrent * (double)ivCWidth / (double) ivMax);
       if(newpos == ivCPos) return;
 
       ivCPos = newpos;
@@ -52,7 +52,7 @@ class ProgressBar {
        std::cout << "#";
       for(int i=0;i<ivCWidth-newpos;i++)
        std::cout << " ";
-      std::cout << "| [" << (int)(100.f*ivCurrent/ivMax) << "%] ";
+      std::cout << "| [" << (int)(100.0*((double)ivCurrent/(double)ivMax)) << "%] ";
       std::cout << info;
       std::cout << std::flush;
       ivClearLen = ivClearLen>strlen(info)?ivClearLen:strlen(info);
