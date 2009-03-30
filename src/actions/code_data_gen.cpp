@@ -220,12 +220,20 @@ void CoocReader::init_features()
 		std::remove_if(mFeaDesc.begin(),mFeaDesc.end(),ll::bind(&feature::mRunningNumber,ll::_1)<0),mFeaDesc.end());
 	matrix_pitype tmp(new matrix_itype(mObsFeatMat->size1(),mFeaDesc.size()));
 	int newidx=0;
-	for(int i=0;i<mObsFeatMat->size1();i++){
+	for(int i=0;i<mObsFeatMat->size2();i++){
 		if(colsToDelete.end() != find(colsToDelete.begin(),colsToDelete.end(),i))
 			continue;
-		ublas::column(*tmp,newidx++) = ublas::column(*mObsFeatMat,i);
+		const ublas::matrix_column<matrix_itype> source(*mObsFeatMat,i);
+		      ublas::matrix_column<matrix_itype> target(*tmp,newidx);
+		ublas::noalias(target) = source;
+		newidx++;
 	}
 	mObsFeatMat = tmp;
+	for (int i = 0; i < this->getObsFeatMat()->size1(); i++) {
+		ublas::matrix_column<CoocReader::matrix_itype> c(*this->getObsFeatMat(),i);
+		cout << accumulate(c.begin(),c.end(),0.0)<<",";
+	}
+	cout <<endl;
 	// renumber everything
 	newidx=0;
 	foreach(feature& f, mFeaDesc){ f.mRunningNumber=newidx++; }
