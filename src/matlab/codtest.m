@@ -4,7 +4,8 @@ cd /tmp;
 %feat_feat_mat;
 %feat_mol_mat;
 %feat_klass_mat;
-code_data;
+%code_data;
+load code_data;
 
 feat_klass = feat_klass / sum(feat_klass(:)); % make probabilities
 feat_feat  = feat_feat / sum(feat_feat(:));   % make probabilities
