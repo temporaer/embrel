@@ -83,7 +83,11 @@ void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfiel
 		mObsDesc += mCurrObsDesc;
 	}
 	else{
-		(*mObsFeatMat)(lidx,idx-1) = boost::lexical_cast<int>(s);
+		int i= boost::lexical_cast<int>(s);
+		if(i>0){
+			(*mObsFeatMat)(lidx,idx-1) = i;
+		//	mObsFeatMat->push_back(lidx,idx-1,i);
+		}
 	}
 }
 
