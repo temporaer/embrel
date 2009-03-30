@@ -229,11 +229,6 @@ void CoocReader::init_features()
 		newidx++;
 	}
 	mObsFeatMat = tmp;
-	for (int i = 0; i < this->getObsFeatMat()->size1(); i++) {
-		ublas::matrix_column<CoocReader::matrix_itype> c(*this->getObsFeatMat(),i);
-		cout << accumulate(c.begin(),c.end(),0.0)<<",";
-	}
-	cout <<endl;
 	// renumber everything
 	newidx=0;
 	foreach(feature& f, mFeaDesc){ f.mRunningNumber=newidx++; }
