@@ -195,7 +195,7 @@ void CoocReader::init_features()
 #if 1
 	cout << "remove very similar features..."<<endl;
 	ProgressBar pbpf(mObsFeatMat->size2() * mObsFeatMat->size2() / 2 - mObsFeatMat->size2()/2,"Prefilt");
-	vector<int> colsToDelete;
+	vector<int> colsToRetain;
 	for(int i=0;i<mObsFeatMat->size2();i++){
 		for(int j=i+1;j<mObsFeatMat->size2();j++)
 		{
@@ -203,25 +203,28 @@ void CoocReader::init_features()
 			ublas::vector<double> v2 = ublas::column(*mObsFeatMat,j);
 			double f = ublas::norm_1( v1 - v2 );
 			if(f<1){
-				colsToDelete += i;
 				if(mFeaDesc[i].mComplexity < mFeaDesc[j].mComplexity)
 					swap(mFeaDesc[i],mFeaDesc[j]);
 				mFeaDesc[i].mRunningNumber=-1; // mark for deletion
 				break;
+			}else
+			{
+				colsToRetain += i;
 			}
 		}
 		pbpf.inc(mObsFeatMat->size2()-i);
 	}
 	pbpf.finish();
-	cout << "Need to delete "<< colsToDelete.size() << " features."<<endl;
-	cout << "New feature number: "<< mObsFeatMat->size2()-colsToDelete.size() << " features."<<endl;
+	cout << "Need to delete "<< mObsFeatMat->size2()-colsToRetain.size() << " features."<<endl;
+	cout << "New feature number: "<< colsToRetain.size() << " features."<<endl;
 	cout << "deleting..."<<flush;
 	mFeaDesc.erase(
 		std::remove_if(mFeaDesc.begin(),mFeaDesc.end(),ll::bind(&feature::mRunningNumber,ll::_1)<0),mFeaDesc.end());
+	cout << "..."<<flush;
 	matrix_pitype tmp(new matrix_itype(mObsFeatMat->size1(),mFeaDesc.size()));
 	int newidx=0;
 	for(int i=0;i<mObsFeatMat->size2();i++){
-		if(colsToDelete.end() != find(colsToDelete.begin(),colsToDelete.end(),i))
+		if(colsToRetain.end() == find(colsToRetain.begin(),colsToRetain.end(),i)) // there are less to retain than to delete->use retain list
 			continue;
 		const ublas::matrix_column<matrix_itype> source(*mObsFeatMat,i);
 		      ublas::matrix_column<matrix_itype> target(*tmp,newidx);
