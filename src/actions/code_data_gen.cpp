@@ -201,9 +201,9 @@ void CoocReader::init_features()
 	cout << "remove very similar features..."<<endl;
 	ProgressBar pbpf(mObsFeatMat->size2() * mObsFeatMat->size2() / 2 - mObsFeatMat->size2()/2,"Prefilt");
 	vector<int> colsToRetain;
-	for(long int i=0;i<mObsFeatMat->size2();i++){
+	for(unsigned long int i=0;i<mObsFeatMat->size2();i++){
 		bool retain=true;
-		for(long int j=i+1;j<mObsFeatMat->size2();j++)
+		for(unsigned long int j=i+1;j<mObsFeatMat->size2();j++)
 		{
 			const ublas::matrix_column<matrix_itype> a(*mObsFeatMat,i);
 			const ublas::matrix_column<matrix_itype> b(*mObsFeatMat,j);
