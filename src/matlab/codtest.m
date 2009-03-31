@@ -12,9 +12,9 @@ feat_feat  = double(feat_feat) / sum(feat_feat(:));   % make probabilities
 %feat_mol   = feat_mol / sum(sum(feat_mol));   % make probabilities
 
 
-cfg = '/home/sarx/prog/uni/embrel/src/matlab/config.cfg';
+cfg = '/home/schulzha/checkout/embrel/src/matlab/config.cfg';
 
-cd /home/sarx/prog/uni/embrel/src/third_party/coemb
+cd /home/schulzha/checkout/embrel/src/third_party/coemb
 %o = struct('n_restarts', 10, 'x_cond', 1, 'x_marg', 'M', 'y_marg', 'M', 'b_fix_psi', 0);
 %o = struct('n_restarts', 2, 'b_cond', 0, 'x_marg', 'U', 'y_marg', 'U', 'b_fix_psi', 0, 'w_nxy', [1,0.30]);
 o = struct();
@@ -38,12 +38,12 @@ end
 psi = PHI{2};
 phi = PSI{2};
 
-clf;
-hold on;
+%clf;
+%hold on;
 
 s = sum(feat_klass);
 %pxycolor = max(pxy_data./[s;s;s;s;s],[],1);
 pxycolor = max(feat_klass',[],1);
-hold off;
-cd /home/sarx/prog/uni/ma/molemb1/matlab
+%hold off;
+cd /home/schulzha/checkout/embrel/src/matlab;
 write2file(phi, psi, pxycolor');

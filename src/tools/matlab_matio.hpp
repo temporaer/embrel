@@ -39,27 +39,28 @@ bool matlab_matrix_out_helper(std::string filen,const char* name, const ME& m){
 }
 
 template <class T>
-inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<T>& m){
+inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<T,boost::numeric::ublas::column_major>& m){
 	//assert(false);
 	BOOST_STATIC_ASSERT(sizeof(T)==0);
 	return 1;
 }
+//template <>
+//inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<float,boost::numeric::ublas::column_major>& m){
+	//assert(std::numeric_limits<float>::digits == 16);
+	//return matlab_matrix_out_helper<MAT_C_SINGLE, MAT_T_SINGLE>(filen,name,m);
+//}
 template <>
-inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<float>& m){
-	assert(std::numeric_limits<float>::digits == 16);
-	return matlab_matrix_out_helper<MAT_C_SINGLE, MAT_T_SINGLE>(filen,name,m);
+inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<int,boost::numeric::ublas::column_major>& m){
+	assert(std::numeric_limits<int>::digits == 31);
+	assert(std::numeric_limits<float>::is_signed );
+	return matlab_matrix_out_helper<MAT_C_INT32, MAT_T_INT32>(filen,name,m);
 }
 template <>
-inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<int>& m){
-	assert(std::numeric_limits<int>::digits == 32);
-	return matlab_matrix_out_helper<MAT_C_INT16, MAT_T_INT16>(filen,name,m);
-}
-template <>
-inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<double>& m){
+inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<double,boost::numeric::ublas::column_major>& m){
 	return matlab_matrix_out_helper<MAT_C_DOUBLE, MAT_T_DOUBLE>(filen,name,m);
 }
 template <>
-inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<unsigned char>& m){
+inline bool matlab_matrix_out(std::string filen,const char* name, const boost::numeric::ublas::matrix<unsigned char,boost::numeric::ublas::column_major>& m){
 	return matlab_matrix_out_helper<MAT_C_UINT8, MAT_T_UINT8>(filen,name,m);
 }
 
