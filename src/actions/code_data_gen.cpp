@@ -57,6 +57,7 @@ CoocReader::~CoocReader(){}
 CoocReader::CoocReader(int lines)
 	: CSVReader(false)
 	, mLines(lines)
+	, mProgress(lines,"reading")
 {
 }
 CoocReader::CoocReader()
@@ -84,6 +85,10 @@ void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfiel
 		//else                        mCurrObsDesc.mKlass = 1;
 		mKlasses[mCurrObsDesc.mKlass] ++;
 		mObsDesc += mCurrObsDesc;
+
+		mProgress.inc();
+		if(lidx+1==mLines)
+			mProgress.finish(false);
 	}
 	else{
 		int i= boost::lexical_cast<int>(s);
