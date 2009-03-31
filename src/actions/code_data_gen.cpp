@@ -314,6 +314,7 @@ struct PosReader : CSVReader{
 void CODE_data_gen::run(){
 	// read input file
 	boost::filesystem::path infile(gCfg().getString("code.input_file") + ".csv");
+	boost::filesystem::path serfile(gCfg().getString("code.input_file") + ".ser");
 	cout << "Reading CSV: " << infile<<endl;
 	fs::ifstream ifs;
 
@@ -323,28 +324,54 @@ void CODE_data_gen::run(){
 	string str;
 	for(;getline(ifs,str);count++);
 	ifs.close();
-
-	ifs.open(infile);
 	CoocReader cr(count);
-	cr.read(ifs);
-	ifs.close();
-	int running_obs_num=0;
-	foreach(observation& o, cr.mObsDesc){ o.mRunningNumber=running_obs_num++;}
 
-	cr.init_features();
-	CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
-	CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
+	bool read_cr = false;
+	if(fs::exists(serfile)){
+		ifstream ifs(serfile.string().c_str());
+		boost::archive::binary_iarchive ar(ifs);
+		int saved_count=0;
+		ar >> saved_count;
+		if(count==saved_count){
+			ar >> cr;
+			read_cr = true;
+		}
+	}
+	if(!read_cr){
+		ifs.open(infile);
+		cr.read(ifs);
+		ifs.close();
+		int running_obs_num=0;
+		foreach(observation& o, cr.mObsDesc){ o.mRunningNumber=running_obs_num++;}
+		cr.init_features();
 
-	cout << "writing matrices to matlab file..."<<flush;
-	if(matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea))
-		throw runtime_error(string("could not write feat_feat"));
-	CoocReader::matrix_itype tmpmat(ublas::trans(obsfea));
-	if(matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat))
-		throw runtime_error(string("could not write feat_klass"));
-	cout <<"done."<<endl;
+		ofstream ofs(serfile.string().c_str());
+		boost::archive::binary_oarchive ar(ofs);
+		ar << count;
+		ar << cr;
+	}
+
+	// small sanity test of matrices
+	for(int i=0;i<cr.getObsFeatMat()->size2();i++){
+		const ublas::matrix_column<CoocReader::matrix_itype> c(*cr.getObsFeatMat(),i);
+		double f=accumulate(c.begin(),c.end(),0.0);
+		cout << (f-(*cr.getFeatFeatMat())(i,i)) <<endl;
+	}
+	cout <<endl;
+
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
+		CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
+		CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
+		cout << "writing matrices to matlab file..."<<flush;
+		if(matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea))
+			throw runtime_error(string("could not write feat_feat"));
+		CoocReader::matrix_itype tmpmat(ublas::trans(obsfea));
+		if(matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat))
+			throw runtime_error(string("could not write feat_klass"));
+		cout <<"done."<<endl;
+
 		chdir("../../src/matlab");
 		const char* matlab_out = "/tmp/matlab.out";
 		int res = system(

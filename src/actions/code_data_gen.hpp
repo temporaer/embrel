@@ -8,6 +8,13 @@
 #include <boost/numeric/ublas/fwd.hpp>
 
 #include <kdtree++/kdtree.hpp>
+#include <progressbar.hpp>
+
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/shared_ptr.hpp>
 
 #include "action.hpp"
 
@@ -19,6 +26,12 @@ class observation {
 		std::string           mDesc;
 		klass_type            mKlass;
 		int                   mRunningNumber;
+		template<class Archive>
+		void serialize(Archive&ar, const unsigned int version){
+			ar & mDesc;
+			ar & mKlass;
+			ar & mRunningNumber;
+		}
 };
 
 struct feature {
@@ -38,13 +51,32 @@ struct feature {
 	float       mFMeasure;
 	float       mSelectCrit2;
 	bool        mIgnore;
+
+	template <class Archive>
+	void serialize(Archive&ar, const unsigned int version){
+		ar & mId;
+		ar & mFromId;
+		ar & mTargetId;
+		ar & mKlassCount;
+		ar & mComplexity;
+		ar & mRunningNumber;
+		ar & mFreq;
+		ar & mEntropy;
+		ar & mBestKlass;
+		ar & mColorFact;
+		ar & mSize;
+		ar & mSelectCrit;
+		ar & mFMeasure;
+		ar & mSelectCrit;
+		ar & mIgnore;
+	}
 };
 
 class CoocReader : public CSVReader{
 		
 	public:
-		typedef boost::numeric::ublas::matrix<double> matrix_itype;
-		typedef boost::numeric::ublas::matrix<double> matrix_dtype;
+		typedef boost::numeric::ublas::matrix<double,boost::numeric::ublas::column_major> matrix_itype;
+		typedef boost::numeric::ublas::matrix<double,boost::numeric::ublas::column_major> matrix_dtype;
 		//typedef boost::numeric::ublas::matrix<unsigned char> matrix_dtype;
 		typedef boost::shared_ptr<matrix_itype> matrix_pitype;
 		typedef boost::shared_ptr<matrix_dtype> matrix_pdtype;
@@ -61,6 +93,7 @@ class CoocReader : public CSVReader{
 		matrix_pdtype mFeatFeatMat;
 		int          mLines;
 		observation              mCurrObsDesc;
+		ProgressBar              mProgress;
 
 	public:
 		feattree_type                 mFeatTree;
@@ -68,6 +101,14 @@ class CoocReader : public CSVReader{
 		std::vector<observation>      mObsDesc;
 		std::vector<feature>          mFeaDesc;
 	public:
+		template<class Archive>
+		void serialize(Archive&ar, const unsigned int version){
+			ar & mKlasses;
+			ar & mObsDesc;
+			ar & mFeaDesc;
+			ar & mObsFeatMat;
+			ar & mFeatFeatMat;
+		}
 		CoocReader(int lines);
 		CoocReader();
 		virtual void read_field (const std::string& s, int lidx, int idx, int numfields);
