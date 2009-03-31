@@ -351,14 +351,6 @@ void CODE_data_gen::run(){
 		ar << cr;
 	}
 
-	// small sanity test of matrices
-	for(int i=0;i<cr.getObsFeatMat()->size2();i++){
-		const ublas::matrix_column<CoocReader::matrix_itype> c(*cr.getObsFeatMat(),i);
-		double f=accumulate(c.begin(),c.end(),0.0);
-		cout << (f-(*cr.getFeatFeatMat())(i,i)) <<endl;
-	}
-	cout <<endl;
-
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
