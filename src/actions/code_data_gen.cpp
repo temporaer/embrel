@@ -253,9 +253,9 @@ void CoocReader::init_features()
 #endif
 
 	unsigned int fea_num = mFeaDesc.size();
-	cout << "creating f x f matrix"<<endl;
+	cout << "creating f x f matrix..."<<flush;
 	mFeatFeatMat.reset(new matrix_dtype(fea_num,fea_num)); 
-	cout << "setting f x f matrix to zero"<<endl;
+	cout << "zeroing..."<<flush;
 	*mFeatFeatMat = ublas::zero_matrix<double>(fea_num,fea_num);
 	cout << "done."<<endl;
 	
