@@ -38,12 +38,12 @@ end
 psi = PHI{2};
 phi = PSI{2};
 
-clf;
-hold on;
+%clf;
+%hold on;
 
 s = sum(feat_klass);
 %pxycolor = max(pxy_data./[s;s;s;s;s],[],1);
 pxycolor = max(feat_klass',[],1);
-hold off;
+%hold off;
 cd /home/schulzha/checkout/embrel/src/matlab;
 write2file(phi, psi, pxycolor');
