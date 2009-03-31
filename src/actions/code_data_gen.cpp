@@ -227,9 +227,7 @@ void CoocReader::init_features()
 	cout << "..."<<flush;
 	matrix_pitype tmp(new matrix_itype(mObsFeatMat->size1(),mFeaDesc.size()));
 	int newidx=0;
-	for(int i=0;i<mObsFeatMat->size2();i++){
-		if(colsToRetain.end() == find(colsToRetain.begin(),colsToRetain.end(),i)) // there are less to retain than to delete->use retain list
-			continue;
+	foreach(int i, colsToRetain){
 		const ublas::matrix_column<matrix_itype> source(*mObsFeatMat,i);
 		      ublas::matrix_column<matrix_itype> target(*tmp,newidx);
 		ublas::noalias(target) = source;
