@@ -204,10 +204,9 @@ void CoocReader::init_features()
 	for(int i=0;i<mObsFeatMat->size2();i++){
 		for(int j=i+1;j<mObsFeatMat->size2();j++)
 		{
-			ublas::vector<double> v1 = ublas::column(*mObsFeatMat,i);
-			ublas::vector<double> v2 = ublas::column(*mObsFeatMat,j);
-			double f = ublas::norm_1( v1 - v2 );
-			if(f<1){
+			const ublas::matrix_column<matrix_itype> a(*mObsFeatMat,i);
+			const ublas::matrix_column<matrix_itype> b(*mObsFeatMat,j);
+			if(equal(a.begin(),a.end(),b.begin())){
 				if(mFeaDesc[i].mComplexity < mFeaDesc[j].mComplexity)
 					swap(mFeaDesc[i],mFeaDesc[j]);
 				mFeaDesc[i].mRunningNumber=-1; // mark for deletion
