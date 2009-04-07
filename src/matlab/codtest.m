@@ -32,7 +32,7 @@ if(str2num(ml_GetPrivateProfileString('CODE','use_pxx', cfg)) == 1)
 	o.pxx0       = feat_feat;
 	%o.w_pxx0 = 0.5*size(feat_klass,2)/size(feat_klass,1);
 	%o.w_pxx0 = 10.0;
-	o.w_pxx0 = eval(ml_GetPrivateProfileString('CODE', 'w_pxx0', cfg));
+	o.w_pxx0 = eval(ml_GetPrivateProfileString('CODE', 'w_pxx0', cfg))
 end
 
 %[PHIX, PSIY, L] = code({pxy_data'}, 2, o);
