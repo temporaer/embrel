@@ -212,7 +212,7 @@ void CoocReader::init_features()
 	}
 	pb1.finish();
 
-#if 1
+if(gCfg().getBool("code.remove_sim")){
 	cout << "remove very similar features..."<<endl;
 	ProgressBar pbpf(mObsFeatMat->size2() * mObsFeatMat->size2() / 2 - mObsFeatMat->size2()/2,"Prefilt");
 	vector<int> colsToRetain;
@@ -257,17 +257,8 @@ void CoocReader::init_features()
 	cout << "done."<<endl;
 	
 	//exit(0);
-#endif
+}
 
-
-#if 0
-	cout << "weight cooccurrence by entropy"<<endl;
-	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
-		ublas::matrix_column<matrix_itype> col(*mObsFeatMat,i);
-		col *= normalize_minmax(mFeaDesc[i].mEntropy,0.0,1.0,estat);
-		col /= accumulate(col.begin(),col.end(),0.0);
-	}
-#endif
 
 	unsigned int fea_num = mFeaDesc.size();
 	cout << "creating f x f matrix..."<<flush;
