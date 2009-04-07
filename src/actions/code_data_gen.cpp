@@ -123,6 +123,10 @@ void CoocReader::init_features()
 	ExactDescriptiveStatistics estat("Entropy");
 	boost::regex key_re1("\\bkey\\(A\\),\\s*");
 	boost::regex key_re2("\\bA,\\s*");
+	//boost::regex muta_soln(
+		//"(?:attyp\(., ., 195\))"
+		//,boost::regex::mod_x);
+	bool regression = klass_cnt.size() >= 5;
 	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
 		pb1.inc();
 		feature f;
@@ -170,9 +174,20 @@ void CoocReader::init_features()
 				ll::bind<int>(&kd_p::second,ll::_1))->first;
 
 		// precision & recall
-		float precision = (float) f.mKlassCount[f.mBestKlass] / f.mFreq;
-		float recall    = (float) f.mKlassCount[f.mBestKlass] / klass_cnt[f.mBestKlass];
-		float beta      = 0.2f;
+		float precision,recall;
+		ExactDescriptiveStatistics regress_stats;
+		if(regression){
+			for(map<observation::klass_type,int>::iterator p=f.mKlassCount.begin();p!=f.mKlassCount.end();p++){
+				for(int i=0;i<p->second;i++)
+					regress_stats.notify(p->first);
+			}
+			precision = regress_stats.getMean();
+			recall    = regress_stats.getN();
+		}else{
+			precision = (float) f.mKlassCount[f.mBestKlass] / f.mFreq;
+			recall    = (float) f.mKlassCount[f.mBestKlass] / klass_cnt[f.mBestKlass];
+		}
+		const float beta= 0.2f;
 		f.mFMeasure     = (1+beta*beta) * (precision * recall) / (beta*beta*precision + recall);
 
 		f.mId           = (boost::format("%s p:%1.2f r:%1.2f") % f.mId % precision % recall).str();
@@ -465,19 +480,24 @@ void CODE_data_gen::run(){
 		cstat += f.mColorFact;
 		sstat += f.mSize;
 	}
+	ExactDescriptiveStatistics klass_stats;
 	foreach(observation& o, cr.mObsDesc){
 		xstat += o.mPos[0];
 		ystat += o.mPos[1];
+		klass_stats += o.mKlass;
 	}
 	float img_width  = gCfg().getFloat("code.img_width");
 	float img_height = gCfg().getFloat("code.img_height");
 	float size_fact  = gCfg().getFloat("code.size_fact");
 	float pos_rand   = gCfg().getFloat("code.pos_rand");
 	foreach(feature& f, cr.mFeaDesc){
-		if(f.mIgnore) continue;
+		//if(f.mIgnore) continue;
 		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat) + (2*(drand48()-0.5))*pos_rand;
 		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat) + (2*(drand48()-0.5))*pos_rand;
-		f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
+		if(cr.mKlasses.size()<=4)
+			f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
+		else // regression
+		 ;
 		f.mSize = normalize_minmax(f.mSize,size_fact*4.0f,size_fact*10.0f,sstat);
 	}
 
@@ -487,7 +507,7 @@ void CODE_data_gen::run(){
 		<< "<data>"<<endl;
 	string color;
 	foreach(feature& f, cr.mFeaDesc){
-		if(f.mIgnore) continue;
+		//if(f.mIgnore) continue;
 		string color;
 		if(cr.mKlasses.size()<4){
 			switch(f.mBestKlass){
@@ -496,28 +516,48 @@ void CODE_data_gen::run(){
 				case 2: color="0x0101%02X"; break;
 				default: throw runtime_error(string("too few colors available!"));
 			}
-		}else{
-			color="0x%02X0101";
+		}else{ 
+			//regression
+			const float splitpoint = 5.f;
+			if(f.mColorFact <= splitpoint){
+				f.mColorFact = 255-normalize_minmax(f.mColorFact,150.0f,255.0f,cstat);
+				color="0x%02X0101";
+			}else{
+				f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
+				color="0x01%02X01";
+			}
 		}
 		color = (boost::format(color)%(int)f.mColorFact).str();
 		xml << boost::format(
-				"<node id='%s' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
-			%          f.mId   % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
+				"<node id='%s' ignore='%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
+			%          f.mId      % f.mIgnore % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
 			<< endl;
 		writeFeaChildren(xml,cr,f.mRunningNumber);
 		xml << "</node>"<<endl;
 	}
 	vector<string> obscolor;
+	bool regression=false;
 	if(cr.mKlasses.size() <= 4)
-		obscolor += "0x0000FF", "0xFFAAAA", "0x0000AA", "0xAA0808";
+		obscolor += "0xFFAAAA","0x0000FF", "0xAA0808", "0x0000AA";
 	else if(cr.mKlasses.size() <= 5)
 		obscolor += "0x000000", "0x00003E", "0x00007C", "0x0000B2", "0x0000FF";
-	else
-		throw runtime_error(string("not enough class colors available"));
+	else{
+		regression=true;
+	}
 	foreach(observation& o, cr.mObsDesc){
 		o.mPos[0] = normalize_minmax(o.mPos[0], 0.0f, img_width,  xstat);
 		o.mPos[1] = normalize_minmax(o.mPos[1], 0.0f, img_height, ystat);
-		string color = obscolor[o.mKlass];
+		string color;
+		if(regression){
+			int c;
+			if(o.mKlass<5)
+				c = normalize_minmax(o.mKlass,0.0,255.0, klass_stats);
+			else
+				c = normalize_minmax(o.mKlass,150.0,255.0, klass_stats);
+			color = (boost::format("0x%02X0101") %c).str();
+		}else{
+			color = obscolor[o.mKlass];
+		}
 		xml << boost::format(
 				"<node id='obs-%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
 			%      o.mRunningNumber     % color       % 4    % o.mPos[0]  % o.mPos[1] % 0 
