@@ -7,8 +7,13 @@ cd /tmp;
 %code_data;
 load code_data;
 
-feat_klass = double(feat_klass) / sum(feat_klass(:)); % make probabilities
+feat_feat  = double(feat_klass) * double(feat_klass');
 feat_feat  = double(feat_feat) / sum(feat_feat(:));   % make probabilities
+
+%s = sum(feat_klass,2); n = s(:,ones(1,size(feat_klass,2)));
+%s = sum(feat_klass,1); n = s(ones(1,size(feat_klass,1)),:);
+%feat_klass = double(feat_klass) ./ n;
+feat_klass = double(feat_klass) / sum(feat_klass(:)); % make probabilities
 %feat_mol   = feat_mol / sum(sum(feat_mol));   % make probabilities
 
 
