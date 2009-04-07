@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+<!ATTLIST svg
+	xmlns:attrib CDATA #IMPLIED
+	xmlns:batik CDATA #IMPLIED
+>
+<!ATTLIST g
+	batik:static CDATA #IMPLIED
+>
+<!ATTLIST image
+	batik:static CDATA #IMPLIED
+>
+<!ATTLIST path
+	batik:static CDATA #IMPLIED
+>
+]>
+<?AdobeSVGViewer save="snapshot"?>
+<svg width="100%" height="100%" viewBox="0 0 1024 768" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:attrib="http://www.carto.net/attrib" xmlns:batik="http://xml.apache.org/batik/ext" onload="init(evt);" zoomAndPan="disable">
+	<!-- don't forget to adopt the pathes to the scripts, or you'll receive a plethora of error messages -->
+	<script type="text/ecmascript" xlink:href="js/helper_functions.js"/>
+	<script type="text/ecmascript" xlink:href="js/mapApp.js"/>
+	<script type="text/ecmascript" xlink:href="js/timer.js"/>
+	<script type="text/ecmascript" xlink:href="js/slider.js"/>
+	<script type="text/ecmascript" xlink:href="js/button.js"/>
+	<script type="text/ecmascript" xlink:href="js/checkbox_and_radiobutton.js"/>
+	<script type="text/ecmascript" xlink:href="js/navigation.js"/>
+	<script type="text/ecmascript"><![CDATA[
+		//global variables for mapApp and map object
+		var myMapApp = new mapApp(false,undefined);
+		var myMainMap;
+
+		function init(evt) {
+			//dynamic layer array that allow loading from database
+			var dynamicLayers = new Array();
+			//initialize digiLayers (layers that allow digitizing)
+			var digiLayers = new Array();
+			//define some styles for the map object
+			var zoomRectStyles = {"fill":"none","stroke":"crimson","stroke-width":0.002,"stroke-dasharray":"0.012,0.002"};
+			var highlightStyles = {"stroke":"crimson","stroke-width":0.002};
+			var dragRectStyles = {"fill":"lightskyblue","fill-opacity":0.5};
+			//initialize myMainMap object, you need to adopt the parameters here
+			myMainMap = new map("mainMap",(IMAGEWIDTH),80,0.6,0,26911,"",1,true,"coordX","coordY",dynamicLayers,digiLayers,"",zoomRectStyles,highlightStyles,dragRectStyles,"referenceMap","myDragCrossSymbol",4750);
+			//create zoom slider
+			//zoom slider styles
+			var sliderStyles={"stroke":"dimgray","stroke-width":2};
+			myMapApp.zoomSlider = new slider("mapZoomSlider","mapZoomSlider",715,75,myMainMap.minWidth,715,165,myMainMap.maxWidth,myMainMap.maxWidth,sliderStyles,10,"sliderSymbol",myMapApp.refMapDragger,true);
+			
+			//now initialize buttons
+			myMapApp.buttons = new Array();
+			//button styles, adopt the style settings to match your needs
+			var buttonTextStyles = {"font-family":"Arial,Helvetica","fill":"dimgray","font-size":10};
+			var buttonStyles = {"fill":"white"};
+			var shadeLightStyles = {"fill":"rgb(235,235,235)"};
+			var shadeDarkStyles = {"fill":"dimgray"};
+			//button instance creation
+			//groupId,functionToCall,buttonType,buttonText,buttonSymbolId,x,y,width,height,textStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,shadowOffset
+			myMapApp.buttons["zoomIn"] = new button("zoomIn","zoomIn",zoomImageButtons,"rect",undefined,"magnifyerZoomIn",705,47,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["zoomOut"] = new button("zoomOut","zoomOut",zoomImageButtons,"rect",undefined,"magnifyerZoomOut",705,173,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["infoButton"] = new switchbutton("infoButton","infoButton",zoomImageSwitchButtons,"rect",undefined,"infoBut",746,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["infoButton"].setSwitchValue(true,false);
+			statusChange("Mode: Infomode");
+			myMapApp.buttons["zoomFull"] = new button("zoomFull","zoomFull",zoomImageButtons,"rect",undefined,"magnifyerFull",771,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["zoomManual"] = new switchbutton("zoomManual","zoomManual",zoomImageSwitchButtons,"rect",undefined,"magnifyerManual",796,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["panManual"] = new switchbutton("panManual","panManual",zoomImageSwitchButtons,"rect",undefined,"symbPan",821,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["recenterMap"] = new switchbutton("recenterMap","recenterMap",zoomImageSwitchButtons,"rect",undefined,"symbRecenter",846,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["backwardExtent"] = new button("backwardExtent","backwardExtent",zoomImageButtons,"rect",undefined,"symbArrowLeft",871,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			myMapApp.buttons["forwardExtent"] = new button("forwardExtent","forwardExtent",zoomImageButtons,"rect",undefined,"symbArrowRight",896,74,20,20,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			//this button is to demonstrate the highlight feature of the map
+			myMapApp.buttons["highlightButton"] = new switchbutton("highlightMap","highlightMap",highlightMap,"rect","Show Halfdome",undefined,580,290,100,25,buttonTextStyles,buttonStyles,shadeLightStyles,shadeDarkStyles,1);
+			//see if we need to disable buttons
+			myMainMap.checkButtons();
+			
+			//create checkbox array
+			myMapApp.checkBoxes = new Array();
+			//labeltext styles
+			var labeltextStyles = {"font-family":"Arial,Helvetica","fill":"dimgray","font-size":15};
+			//create individual checkboxes
+			myMapApp.checkBoxes["park_boundary"] = new checkBox("park_boundary","checkBoxes",0,20,"checkBoxRect","checkBoxCross",true,"Park Boundary",labeltextStyles,12,6,undefined,toggleMapLayer);
+			myMapApp.checkBoxes["ShadedRelief"] = new checkBox("ShadedRelief","checkBoxes",200,20,"checkBoxRect","checkBoxCross",true,"Shaded Relief",labeltextStyles,12,6,undefined,toggleMapLayer);
+			
+			//load function specific to the current map project
+			loadProjectSpecific();
+		}
+		
+		//this function is called after each pan or zoom or change of map extent
+		//you can place project specific functions here that need to react on the map extent, e.g. adopting line-widths, loading additional data, etc.
+		function loadProjectSpecific() {
+			//adopt width and height of map extent
+			document.getElementById("myScaleTextW").firstChild.nodeValue = formatNumberString(myMainMap.curWidth.toFixed(myMainMap.nrDecimals),",") + myMainMap.units;
+			document.getElementById("myScaleTextH").firstChild.nodeValue = formatNumberString(myMainMap.curHeight.toFixed(myMainMap.nrDecimals),",") + myMainMap.units;
+			//adopt line width of park boundary, remove this line if you remove the park boundary
+			document.getElementById("park_boundary").setAttributeNS(null,"stroke-width",myMainMap.curWidth*0.005);	
+			//change button state for show halfdome
+			if (myMapApp.buttons["highlightButton"].getSwitchValue()) {
+				myMapApp.buttons["highlightButton"].setSwitchValue(false,true);
+			}
+		}
+		
+		//this function toggles the visibility of a map layer
+		function toggleMapLayer(id,checkStatus,labelText) {
+			var mapLayer = document.getElementById(id);
+			var visibleStatus = "hidden";
+			if (checkStatus) {
+				visibleStatus = "visible";
+			}
+			mapLayer.setAttributeNS(null,"visibility",visibleStatus);
+		}
+		
+		//this function demonstrates the highlight mode of the map
+		function highlightMap(id,evt,buttonState,buttonText) {
+			if (buttonState) {
+				myMapApp.buttons["highlightButton"].setTextValue("Hide Halfdome");
+				myMainMap.highlightPosition(276810,4180645,true);
+			}
+			else {
+				myMapApp.buttons["highlightButton"].setTextValue("Show Halfdome");
+				myMainMap.hideHighlightCross();
+			}
+		}		
+]]></script>
+	<defs>
+		<!-- Symbols for checkboxes -->
+		<symbol id="checkBoxRect" overflow="visible">
+			<rect x="-6" y="-6" width="12" height="12" fill="white" stroke="dimgray" stroke-width="1.5"/>
+		</symbol>
+		<symbol id="checkBoxCross" overflow="visible" fill="none" stroke="dimgray" stroke-width="1" pointer-events="none">
+			<line x1="-5" y1="-5" x2="5" y2="5"/>
+			<line x1="-5" y1="5" x2="5" y2="-5"/>
+		</symbol>
+		<!-- Symbols for Zoom Magnifyer glasses -->
+		<symbol id="magnifyerFull" overflow="visible">
+			<text y="7.5" font-family="Arial,Helvetica" fill="dimgray" font-size="18" font-weight="bold" text-anchor="middle" pointer-events="none">F</text>
+		</symbol>
+		<symbol id="infoBut" overflow="visible">
+			<circle fill="none" stroke="dimgray" stroke-width="1.5" r="7.5" />
+			<text y="5" font-family="Arial,Helvetica" font-size="13" font-weight="bold" fill="dimgray" text-anchor="middle" pointer-events="none">i</text>
+		</symbol>
+		<symbol id="magnifyerManual" overflow="visible" fill="none" stroke="dimgray" stroke-width="1.5">
+			<rect x="-6" y="-6" width="12" height="12" stroke-dasharray="1.5,1.5"/>
+			<line x1="-3" y1="0" x2="3" y2="0" />
+			<line x1="0" y1="-3" x2="0" y2="3" />
+		</symbol>
+		<symbol id="magnifyerZoomIn" overflow="visible" fill="none" stroke="dimgray" stroke-width="2">
+			<line x1="-4" y1="0" x2="4" y2="0"/>
+			<line x1="0" y1="-4" x2="0" y2="4"/>
+		</symbol>
+		<symbol id="magnifyerZoomOut" overflow="visible">
+			<line x1="-4" y1="0" x2="4" y2="0" fill="none" stroke="dimgray" stroke-width="2" />
+		</symbol>
+		<!-- hand symbol for panning -->
+		<symbol id="symbPan" overflow="visible">
+			<path transform="scale(1.2)" fill="none" stroke="dimgray" stroke-width="1" d="M-2 6 C -2.2 2.5 -8.0 -0 -5.7 -1.9 C -4.3 -2.5 -3.3 -0.5 -2.5 0.7 C -3.2 -2.1 -5.5 -5.2 -3.6 -5.8 C -2.1 -6.3 -1.6 -3.6 -1.1 -1.9 C -0.9 -4.2 -1.6 -6.4 -0.2 -6.6 C 1.4 -6.8 0.9 -3 1.1 -1.9 C 1.5 -3.5 1.2 -6.1 2.5 -6.1 C 3.9 -6.1 3.5 -3.2 3.6 -1.6 C 4 -2.9 4.1 -4.3 5.3 -4.4 C 7.3 -3.5 4 2.2 3 6z"/>
+		</symbol>
+		<!-- Symbol for Arrows -->
+		<symbol id="symbArrow" overflow="visible">
+			<polyline fill="none" stroke="dimgray" stroke-width="1" points="-3,-6 3,-6 3,1 5,1 0,7 -5,1 -3,1 -3,-5"/>
+		</symbol>
+		<symbol id="symbArrowLeft" overflow="visible">
+			<use xlink:href="#symbArrow" transform="rotate(90)" />
+		</symbol>
+		<symbol id="symbArrowRight" overflow="visible">
+			<use xlink:href="#symbArrow" transform="rotate(-90)" />
+		</symbol>
+		<!-- Symbol for Recentering Map -->
+		<symbol id="symbRecenter" overflow="visible">
+			<circle fill="dimgray" cx="0" cy="0" r="1" pointer-events="none"/>
+			<g fill="none" stroke="dimgray" stroke-width="1.5" pointer-events="none">
+				<line x1="-7" y1="-7" x2="-3" y2="-3"/>
+				<line x1="7" y1="7" x2="3" y2="3"/>
+				<line x1="-7" y1="7" x2="-3" y2="3"/>
+				<line x1="7" y1="-7" x2="3" y2="-3"/>
+			</g>
+		</symbol>
+		<!-- Symbol for Slider -->
+		<symbol id="sliderSymbol" overflow="visible" pointer-events="none">
+			<line x1="0" y1="-5" x2="0" y2="5" fill="none" stroke="dimgray" stroke-width="5"/>
+		</symbol>
+		<!-- Symbol for Dragging if zoomed in far -->
+		<symbol id="myDragCrossSymbol" overflow="visible" stroke-width="2000" fill="none" stroke="darkblue" pointer-events="none">
+			<line x1="-7000" y1="0" x2="-2500" y2="0"/>
+			<line x1="7000" y1="0" x2="2500" y2="0"/>
+			<line x1="0" y1="-3300" x2="0" y2="-7800"/>
+			<line x1="0" y1="3300" x2="0" y2="7800"/>
+		</symbol>
+		<!-- Marker for Extent-Arrows -->
+		<marker id="myStartArrow" overflow="visible" orient="auto">
+			<polyline fill="dimgray" points="-0.5,0 8,-2 8,2"/>
+		</marker>
+		<marker id="myEndArrow" overflow="visible" orient="auto">
+			<polyline fill="dimgray" points="0.5,0 -8,-2 -8,2"/>
+		</marker>
+	</defs>
+	<title>Demonstration of the SVG NavigationTools</title>
+	<!-- this is a background rectangle that is used to ensure that the svg root element receives all mouse events, please adopt the fill attribute to match your desired background color -->
+	<rect x="-500" y="-500" width="3000" height="3000" stroke="none" fill="aliceblue" />
+	<!-- Main Map Frame -->
+	<svg id="mainMap" x="0" y="15" viewBox="0 0 800 600" width="553" height="700" cursor="crosshair">
+		<!-- this group is necessary for manual panning, it temporarily gets a translate transformation which is later removed on mouseup -->
+		<g id="mainMapGroup" transform="translate(0,0)">
+			<!-- within this group you should place all map layers, usually, if you have more than one element in a map layer, you would use a group instead of a single element, as in this example -->
+			(IMAGEITSELF)
+		</g>
+	</svg>
+	<!-- this group holds navigation, title and if you like, legend information -->
+	<g>
+		<!-- your map title -->
+		<text font-family="Arial,Helvetica" fill="dimgray" font-size="22" font-weight="bold" x="580" y="30" pointer-events="none">Map Title</text>
+		<!-- coordinate display -->
+		<g font-family="Arial,Helvetica" fill="dimgray" font-size="15" pointer-events="none">
+			<text id="coordX" x="745" y="145">X:</text>
+			<text id="coordY" x="845" y="145">Y:</text>
+		</g>
+		<!-- display width and height of map extent -->
+		<g>
+			<!-- vertical line, displays current height of map extent -->
+			<line stroke="dimgray" stroke-width="1.5" marker-start="url(#myStartArrow)" marker-end="url(#myEndArrow)" x1="561" y1="15" x2="561" y2="715"/>
+			<rect fill="aliceblue" x="555" y="330" width="12" height="70"/>
+			<text id="myScaleTextH" font-family="Arial,Helvetica" fill="dimgray" font-size="15" text-anchor="middle" transform="translate(556,365),rotate(90)" pointer-events="none">81,000 m</text>
+			<!-- horizontal line, displays current width of map extent -->
+			<line stroke="dimgray" stroke-width="1.5" marker-start="url(#myStartArrow)" marker-end="url(#myEndArrow)" x1="0" y1="723" x2="553.1" y2="723"/>
+			<rect fill="aliceblue" x="242" y="717" width="70" height="12"/>
+			<text id="myScaleTextW" font-family="Arial,Helvetica" fill="dimgray" font-size="15" text-anchor="middle" transform="translate(277,728)" pointer-events="none">64,000 m</text>
+			<!-- small rectangle in lower right corner, onclick displays current map extent in real world coordinates -->
+			<rect fill="dimgray" x="558.5" y="720.5" width="5" height="5" onclick="showExtent()" />
+		</g>
+		<!-- control map layer visibility with checkBoxes -->
+		<g transform="translate(590 225)" id="checkBoxes">
+			<text font-family="Arial,Helvetica" fill="dimgray" font-size="18" font-weight="bold" x="-10" y="0" pointer-events="none">Map Layer Controls</text>
+			<!-- the checkbox geometries will be added here -->
+		</g>
+		<!-- map impressum and status Bar -->
+		<g text-rendering="optimizeLegibility" font-family="Arial,Helvetica" fill="dimgray" font-size="12">
+			<!-- text with this id is required to show help texts -->
+			<text id="statusText" x="745" y="125">Statusbar: Your Status Text</text>
+			<text x="1" y="760">Map Author: Your Name, 2004</text>
+			<text x="510" y="760">Source: Your datasources</text>
+		</g>
+	</g>
+	<!-- small reference map, shares the same coordinate system than the main map -->
+	<!-- it is very recommended that the width and height of the nested svg element has the same ratio as the viewBox width and height -->
+	<svg id="referenceMap" x="580" y="45" viewBox="0 0 (IMAGEWIDTH) (IMAGEHEIGHT)" width="118.52" height="150">
+		<!-- here you can place any graphical elements for your reference/overview map -->
+		<image x="0" y="0" width="(IMAGEWIDTH)" height="(IMAGEHEIGHT)" xlink:href="(IMAGESMALL)" batik:static="true"/>
+	</svg>
+	<!-- this group holds the zoom slider and buttons -->
+	<g>
+		<!-- empty group where zoomSlider is later appended -->
+		<g id="mapZoomSlider"/>
+		<text fill="dimgray" font-family="Arial,Helvetica" font-weight="bold" font-size="18" x="745" y="60" pointer-events="none">Map Navigator</text>
+		<!-- button for zoom-in, above slider -->
+		<g id="zoomIn" cursor="pointer" />
+		<!-- button for zoom-out, below slider -->
+		<g id="zoomOut" cursor="pointer" />
+		<!-- info button -->
+		<g id="infoButton" cursor="pointer" />
+		<!-- button for full view (f) -->
+		<g id="zoomFull" cursor="pointer" />
+		<!-- button for manual zoom (rectangle) -->
+		<g id="zoomManual" cursor="pointer" />
+		<!-- button for manual pan -->
+		<g id="panManual" cursor="pointer" />
+		<!-- button for redefining map center -->
+		<g id="recenterMap" cursor="pointer" />
+		<!-- button for backwarding map extent (extent history) -->
+		<g id="backwardExtent" cursor="pointer" />
+		<!-- button for forwarding map extent (extent history) -->
+		<g id="forwardExtent" cursor="pointer" />
+		<!-- button for demonstrating highlight feature of the map -->
+		<g id="highlightMap" cursor="pointer" />		
+	</g>
+</svg>
