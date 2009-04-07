@@ -357,6 +357,22 @@ void CODE_data_gen::run(){
 		ar << cr;
 	}
 
+#if 0
+	cout << "weight cooccurrence by entropy"<<endl;
+	ExactDescriptiveStatistics estat;
+	estat.notify(cr.mFeaDesc.begin(), cr.mFeaDesc.end(), ll::bind(&feature::mEntropy,ll::_1));
+	for(unsigned int i=0;i<cr.getObsFeatMat()->size2();i++){
+		ublas::matrix_column<CoocReader::matrix_itype> col(*cr.getObsFeatMat(),i);
+		col *= normalize_minmax(cr.mFeaDesc[i].mEntropy,0.0,1.0,estat);
+		//col /= accumulate(col.begin(),col.end(),0.0);
+	}
+#endif
+	//foreach(feature& f, cr.mFeaDesc){
+		//f.mSize = f.mFreq;
+	//}
+	
+
+
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
