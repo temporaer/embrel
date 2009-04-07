@@ -389,7 +389,7 @@ void CODE_data_gen::run(){
 		chdir("../../src/matlab");
 		const char* matlab_out = "/tmp/matlab.out";
 		int res = system(
-				(boost::format("matlab -glnx86 -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
+				(boost::format("MALLOC_CHECK_=1 matlab -glnxa64 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
 		if(res == -1)
 			throw runtime_error(std::string("Matlab execution failed!"));
 		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
