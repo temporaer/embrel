@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include "mex.h"
 #include "math.h"
 
