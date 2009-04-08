@@ -8,6 +8,8 @@
 	
 
 #include <boost/numeric/ublas/fwd.hpp>
+#include <cstdlib>
+#include <iostream>
 
 namespace boost{
 namespace numeric{
@@ -41,6 +43,67 @@ namespace functor {
 					}
 		};
 }
+
+//sum of a matrix
+template < typename T>
+T sum(const matrix<T> & m)
+{
+	T s = T(0);
+	for(int row=0; row<m.size1(); row++)
+		for(int col=0; col<m.size2(); col++)
+			s+=m(row,col);
+
+	return s;
+}
+
+// rand matrix
+template < typename T>
+void random_init(matrix<T> & m, const T& vmin, const T& vmax)
+{
+	T fact = vmax-vmin;
+	for(unsigned int row=0; row<m.size1(); row++)
+		for(unsigned int col=0; col<m.size2(); col++){
+			m(row,col) = drand48() * fact + vmin;
+		}
+}
+
+ 
+//colSums
+template < typename T >
+vector<T> 
+colSums(matrix<T> &data)
+{
+	unsigned int cols = data.size2();
+	ublas::vector<T> sums(cols);
+
+	for(unsigned int i=0; i<cols; i++)
+		{
+			 matrix_column<ublas::matrix<T> > mc (data, i);
+			 T s = T(sum(mc));
+			 sums(i) = s;
+		}
+	return sums;
+}
+
+//==============================
+//rowSums
+template < typename T >
+vector<T> 
+rowSums(matrix<T> &data)
+{
+	unsigned int rows = data.size1();
+	vector<T> sums(rows);
+
+	for(unsigned int i=0; i<rows; i++)
+		{
+			 matrix_row<matrix<T> > mc (data, i);
+			 T s = T(sum(mc));
+			 sums(i) = s;
+		}
+	return sums;
+}
+
+
 } // ublas
 } // numeric
 } // boost
