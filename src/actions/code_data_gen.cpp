@@ -39,6 +39,8 @@
 #include <progressbar.hpp>
 #include <configuration.hpp>
 
+#include <rcode.hpp>
+
 #include <unistd.h>
 
 #include "code_data_gen.hpp"
@@ -376,6 +378,27 @@ void CODE_data_gen::run(){
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
+#define USE_RCODE 1
+#if USE_RCODE
+		RCode rc;
+		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
+		rc.setPxx(*cr.getFeatFeatMat());
+		rc.run(2);
+		ofstream os1("/tmp/erl/fea.txt");
+		for(unsigned int i=0;i<rc.mXpos.size1();i++) {
+			ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
+			copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
+			os1<<endl;
+		}
+		ofstream os2("/tmp/erl/mol.txt");
+		for(unsigned int i=0;i<rc.mYpos.size1();i++) {
+			ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
+			copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
+			os2<<endl;
+		}
+		os1.close(), os2.close();
+			
+#else
 		CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
 		CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
 		cout << "writing matrices to matlab file..."<<flush;
@@ -394,6 +417,7 @@ void CODE_data_gen::run(){
 			throw runtime_error(std::string("Matlab execution failed!"));
 		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
 			throw runtime_error(std::string("Got interrupted."));
+#endif
 	}
 
 	PosReader<vector<feature> >     pr_fea(cr.mFeaDesc);
