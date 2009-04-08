@@ -47,6 +47,7 @@ class RProp{
 
 		/// get weight update
 		inline const vec_t& getDeltaW()const{ return mDeltaW; }
+		inline       vec_t& getDeltaW()     { return mDeltaW; }
 		/// get weight update
 		inline const precision&   getDeltaW(unsigned int i)const{ return mDeltaW(i); }
 

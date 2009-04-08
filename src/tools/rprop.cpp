@@ -2,6 +2,9 @@
 #include "rprop.hpp"
 #include "ublas_functors.hpp"
 
+#include <iostream>
+#include <boost/numeric/ublas/io.hpp>
+
 using namespace std;
 using namespace boost::numeric::ublas;
 
@@ -10,7 +13,7 @@ using namespace boost::numeric::ublas;
 RProp::RProp(unsigned int dim_grad)
 : mNuPlus(1.2f)
 , mNuMinus(0.5f)
-, mDelta0(0.1)
+, mDelta0(0.01f)
 , mDeltaMax(50)
 , mGrad(dim_grad,0)
 , mOldGrad(dim_grad,0)
@@ -18,19 +21,26 @@ RProp::RProp(unsigned int dim_grad)
 , mDeltaW(dim_grad,0)
 , mGradSgn(dim_grad,0)
 , mOldGradSgn(dim_grad,0)
+, mProdSgn(dim_grad,0)
 {
 }
 
 void RProp::update(){
+	cout << sum(mGrad)<<endl;
+	
+	// step 1: update delta w
 	noalias(mGradSgn)       = vec_sgn(mGrad);
-	noalias(mDeltaW)        = element_prod(-mGradSgn,mUpdateValue);
+	noalias(mDeltaW)        = element_prod(mGradSgn,mUpdateValue); // for minimzation: add a "-"
+
+	// step 2: update the update-value
 	noalias(mProdSgn)       = vec_sgn(element_prod(mGradSgn,mOldGradSgn));
 	sign_vec_t::iterator ps = mProdSgn.begin(), pe = mProdSgn.end();
-	vec_t::iterator dw      = mDeltaW.begin();
-	for(;ps!=pe;ps++,dw++){
-		sign_t& s = *ps;
-		if(s < 0){ *dw *= mNuMinus; continue;};
-		if(s > 0){ *dw *= mNuPlus; *dw = max(*dw, mDeltaMax);};
+	vec_t::iterator uw      = mUpdateValue.begin();
+	while(ps!=pe){
+		sign_t&    s = *ps++;
+		precision& d = *uw++;
+		if(s < 0){ d *= mNuMinus; /*cout<<"."<<flush;*/ continue;};
+		if(s > 0){ d *= mNuPlus;  /*cout<<":"<<flush;*/ d = min(d, mDeltaMax);};
 	}
 	swap(mGrad,mOldGrad);
 	swap(mGradSgn,mOldGradSgn);
