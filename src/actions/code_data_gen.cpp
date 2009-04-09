@@ -390,7 +390,7 @@ void CODE_data_gen::run(){
 			copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
 			os1<<endl;
 		}
-		ofstream os2("/tmp/erl/mol.txt");
+		ofstream os2("/tmp/erl/cla.txt");
 		for(unsigned int i=0;i<rc.mYpos.size1();i++) {
 			ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
 			copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
