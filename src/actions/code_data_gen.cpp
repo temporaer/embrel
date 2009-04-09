@@ -39,6 +39,8 @@
 #include <progressbar.hpp>
 #include <configuration.hpp>
 
+#include <rcode.hpp>
+
 #include <unistd.h>
 
 #include "code_data_gen.hpp"
@@ -123,6 +125,10 @@ void CoocReader::init_features()
 	ExactDescriptiveStatistics estat("Entropy");
 	boost::regex key_re1("\\bkey\\(A\\),\\s*");
 	boost::regex key_re2("\\bA,\\s*");
+	//boost::regex muta_soln(
+		//"(?:attyp\(., ., 195\))"
+		//,boost::regex::mod_x);
+	bool regression = klass_cnt.size() >= 5;
 	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
 		pb1.inc();
 		feature f;
@@ -170,9 +176,20 @@ void CoocReader::init_features()
 				ll::bind<int>(&kd_p::second,ll::_1))->first;
 
 		// precision & recall
-		float precision = (float) f.mKlassCount[f.mBestKlass] / f.mFreq;
-		float recall    = (float) f.mKlassCount[f.mBestKlass] / klass_cnt[f.mBestKlass];
-		float beta      = 0.2f;
+		float precision,recall;
+		ExactDescriptiveStatistics regress_stats;
+		if(regression){
+			for(map<observation::klass_type,int>::iterator p=f.mKlassCount.begin();p!=f.mKlassCount.end();p++){
+				for(int i=0;i<p->second;i++)
+					regress_stats.notify(p->first);
+			}
+			precision = regress_stats.getMean();
+			recall    = regress_stats.getN();
+		}else{
+			precision = (float) f.mKlassCount[f.mBestKlass] / f.mFreq;
+			recall    = (float) f.mKlassCount[f.mBestKlass] / klass_cnt[f.mBestKlass];
+		}
+		const float beta= 0.2f;
 		f.mFMeasure     = (1+beta*beta) * (precision * recall) / (beta*beta*precision + recall);
 
 		f.mId           = (boost::format("%s p:%1.2f r:%1.2f") % f.mId % precision % recall).str();
@@ -197,7 +214,7 @@ void CoocReader::init_features()
 	}
 	pb1.finish();
 
-#if 1
+if(gCfg().getBool("code.remove_sim")){
 	cout << "remove very similar features..."<<endl;
 	ProgressBar pbpf(mObsFeatMat->size2() * mObsFeatMat->size2() / 2 - mObsFeatMat->size2()/2,"Prefilt");
 	vector<int> colsToRetain;
@@ -242,17 +259,8 @@ void CoocReader::init_features()
 	cout << "done."<<endl;
 	
 	//exit(0);
-#endif
+}
 
-
-#if 0
-	cout << "weight cooccurrence by entropy"<<endl;
-	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
-		ublas::matrix_column<matrix_itype> col(*mObsFeatMat,i);
-		col *= normalize_minmax(mFeaDesc[i].mEntropy,0.0,1.0,estat);
-		col /= accumulate(col.begin(),col.end(),0.0);
-	}
-#endif
 
 	unsigned int fea_num = mFeaDesc.size();
 	cout << "creating f x f matrix..."<<flush;
@@ -351,17 +359,46 @@ void CODE_data_gen::run(){
 		ar << cr;
 	}
 
-	// small sanity test of matrices
-	for(int i=0;i<cr.getObsFeatMat()->size2();i++){
-		const ublas::matrix_column<CoocReader::matrix_itype> c(*cr.getObsFeatMat(),i);
-		double f=accumulate(c.begin(),c.end(),0.0);
-		cout << (f-(*cr.getFeatFeatMat())(i,i)) <<endl;
+#if 0
+	cout << "weight cooccurrence by entropy"<<endl;
+	ExactDescriptiveStatistics estat;
+	estat.notify(cr.mFeaDesc.begin(), cr.mFeaDesc.end(), ll::bind(&feature::mEntropy,ll::_1));
+	for(unsigned int i=0;i<cr.getObsFeatMat()->size2();i++){
+		ublas::matrix_column<CoocReader::matrix_itype> col(*cr.getObsFeatMat(),i);
+		col *= normalize_minmax(cr.mFeaDesc[i].mEntropy,0.0,1.0,estat);
+		//col /= accumulate(col.begin(),col.end(),0.0);
 	}
-	cout <<endl;
+#endif
+	//foreach(feature& f, cr.mFeaDesc){
+		//f.mSize = f.mFreq;
+	//}
+	
+
 
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
+#define USE_RCODE 1
+#if USE_RCODE
+		RCode rc;
+		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
+		rc.setPxx(*cr.getFeatFeatMat());
+		rc.run(2);
+		ofstream os1("/tmp/erl/fea.txt");
+		for(unsigned int i=0;i<rc.mXpos.size1();i++) {
+			ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
+			copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
+			os1<<endl;
+		}
+		ofstream os2("/tmp/erl/cla.txt");
+		for(unsigned int i=0;i<rc.mYpos.size1();i++) {
+			ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
+			copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
+			os2<<endl;
+		}
+		os1.close(), os2.close();
+			
+#else
 		CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
 		CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
 		cout << "writing matrices to matlab file..."<<flush;
@@ -375,11 +412,12 @@ void CODE_data_gen::run(){
 		chdir("../../src/matlab");
 		const char* matlab_out = "/tmp/matlab.out";
 		int res = system(
-				(boost::format("matlab -glnx86 -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
+				(boost::format("MALLOC_CHECK_=1 matlab -glnxa64 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
 		if(res == -1)
 			throw runtime_error(std::string("Matlab execution failed!"));
 		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
 			throw runtime_error(std::string("Got interrupted."));
+#endif
 	}
 
 	PosReader<vector<feature> >     pr_fea(cr.mFeaDesc);
@@ -418,6 +456,27 @@ void CODE_data_gen::run(){
 	pb2.finish();
 
 	int maxiter = gCfg().getInt("code.hebb_iter");
+
+	ofstream dist_vs_norm("/tmp/dist_vs_norm.dat");
+	ProgressBar pb2a(cr.mFeaDesc.size(),"dist_vs_norm");
+	foreach(feature& f1, cr.mFeaDesc){
+		foreach(feature& f2, cr.mFeaDesc){
+			dist_vs_norm << ublas::norm_2(f1.mPos-f2.mPos);
+			dist_vs_norm << " ";
+			ublas::matrix_column<CoocReader::matrix_itype> c1(*cr.getObsFeatMat(),f1.mRunningNumber);
+			ublas::matrix_column<CoocReader::matrix_itype> c2(*cr.getObsFeatMat(),f2.mRunningNumber);
+			double c=0;
+			for(int i=0;i<c1.size();i++) {
+				if(c1[i]>0 && c2[i]>0)
+					c++;
+			}
+			dist_vs_norm << c;
+			dist_vs_norm << endl;
+		}
+		pb2a.inc();
+	}
+	pb2a.finish();
+	dist_vs_norm.close();
 	ProgressBar pb3(maxiter,"hebb");
 	ExactDescriptiveStatistics sc("selectcrit");
 	foreach(feature& f, cr.mFeaDesc){ sc += f.mSelectCrit2; }
@@ -473,19 +532,24 @@ void CODE_data_gen::run(){
 		cstat += f.mColorFact;
 		sstat += f.mSize;
 	}
+	ExactDescriptiveStatistics klass_stats;
 	foreach(observation& o, cr.mObsDesc){
 		xstat += o.mPos[0];
 		ystat += o.mPos[1];
+		klass_stats += o.mKlass;
 	}
 	float img_width  = gCfg().getFloat("code.img_width");
 	float img_height = gCfg().getFloat("code.img_height");
 	float size_fact  = gCfg().getFloat("code.size_fact");
 	float pos_rand   = gCfg().getFloat("code.pos_rand");
 	foreach(feature& f, cr.mFeaDesc){
-		if(f.mIgnore) continue;
+		//if(f.mIgnore) continue;
 		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat) + (2*(drand48()-0.5))*pos_rand;
 		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat) + (2*(drand48()-0.5))*pos_rand;
-		f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
+		if(cr.mKlasses.size()<=4)
+			f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
+		else // regression
+		 ;
 		f.mSize = normalize_minmax(f.mSize,size_fact*4.0f,size_fact*10.0f,sstat);
 	}
 
@@ -495,7 +559,7 @@ void CODE_data_gen::run(){
 		<< "<data>"<<endl;
 	string color;
 	foreach(feature& f, cr.mFeaDesc){
-		if(f.mIgnore) continue;
+		//if(f.mIgnore) continue;
 		string color;
 		if(cr.mKlasses.size()<4){
 			switch(f.mBestKlass){
@@ -504,28 +568,48 @@ void CODE_data_gen::run(){
 				case 2: color="0x0101%02X"; break;
 				default: throw runtime_error(string("too few colors available!"));
 			}
-		}else{
-			color="0x%02X0101";
+		}else{ 
+			//regression
+			const float splitpoint = 5.f;
+			if(f.mColorFact <= splitpoint){
+				f.mColorFact = 255-normalize_minmax(f.mColorFact,150.0f,255.0f,cstat);
+				color="0x%02X0101";
+			}else{
+				f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
+				color="0x01%02X01";
+			}
 		}
 		color = (boost::format(color)%(int)f.mColorFact).str();
 		xml << boost::format(
-				"<node id='%s' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
-			%          f.mId   % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
+				"<node id='%s' ignore='%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
+			%          f.mId      % f.mIgnore % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
 			<< endl;
 		writeFeaChildren(xml,cr,f.mRunningNumber);
 		xml << "</node>"<<endl;
 	}
 	vector<string> obscolor;
+	bool regression=false;
 	if(cr.mKlasses.size() <= 4)
-		obscolor += "0x0000FF", "0xFFAAAA", "0x0000AA", "0xAA0808";
+		obscolor += "0xFFAAAA","0x0000FF", "0xAA0808", "0x0000AA";
 	else if(cr.mKlasses.size() <= 5)
 		obscolor += "0x000000", "0x00003E", "0x00007C", "0x0000B2", "0x0000FF";
-	else
-		throw runtime_error(string("not enough class colors available"));
+	else{
+		regression=true;
+	}
 	foreach(observation& o, cr.mObsDesc){
 		o.mPos[0] = normalize_minmax(o.mPos[0], 0.0f, img_width,  xstat);
 		o.mPos[1] = normalize_minmax(o.mPos[1], 0.0f, img_height, ystat);
-		string color = obscolor[o.mKlass];
+		string color;
+		if(regression){
+			int c;
+			if(o.mKlass<5)
+				c = normalize_minmax(o.mKlass,0.0,255.0, klass_stats);
+			else
+				c = normalize_minmax(o.mKlass,150.0,255.0, klass_stats);
+			color = (boost::format("0x%02X0101") %c).str();
+		}else{
+			color = obscolor[o.mKlass];
+		}
 		xml << boost::format(
 				"<node id='obs-%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
 			%      o.mRunningNumber     % color       % 4    % o.mPos[0]  % o.mPos[1] % 0 

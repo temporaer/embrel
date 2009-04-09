@@ -6,4 +6,4 @@ IF( CMAKE_COMPILER_IS_GNUCXX )
 ENDIF()
 
 add_library( erlconfig SHARED configuration.cpp configuration.hpp )
-target_link_libraries( erlconfig ${Boost_LIBRARIES} ${NANA_LIBRARIES} )
+target_link_libraries( erlconfig ${Boost_LIBRARIES})
