@@ -28,7 +28,7 @@ class ProgressBar {
     inline void finish(bool clear=false){
       if(clear){
         std::cout << "\r";
-        for(uint i=0;i<std::min((long unsigned int)79,ivCWidth + ivClearLen + 60 + ivpDesc.size()); i++)
+        for(uint i=0;i<std::min((unsigned int)79,ivCWidth + ivClearLen + 60 + ivpDesc.size()); i++)
 	  std::cout << " ";
         std::cout<<"\r"<<std::flush;
       }
