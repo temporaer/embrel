@@ -97,11 +97,11 @@ void SDFReader::readInputFiles()
 {
 	int graphCount = 0;
 	BOOST_FOREACH(const FileDescriptor& fd, mInputFiles){
-		L("Reading SDF input file `%s'...", fd.name.c_str());
+		//L("Reading SDF input file `%s'...", fd.name.c_str());
 		ifstream is(fd.name.c_str());
 		int fcnt = 0;
 		while(readMolekule(is, fd.classid, graphCount++) && fcnt++<400);
-		L(". %d molecules read.\n", graphCount);
+		//L(". %d molecules read.\n", graphCount);
 	}
 	ofstream os("/tmp/erl/graphs.ser");
 	archive::binary_oarchive ar(os);
