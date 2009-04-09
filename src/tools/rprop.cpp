@@ -26,7 +26,7 @@ RProp::RProp(unsigned int dim_grad)
 }
 
 void RProp::update(){
-	cout << sum(mGrad)<<endl;
+	//cout << sum(mGrad)<<endl;
 	
 	// step 1: update delta w
 	noalias(mGradSgn)       = vec_sgn(mGrad);
