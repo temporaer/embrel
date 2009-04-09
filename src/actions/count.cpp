@@ -62,7 +62,7 @@ struct cnt_base{
 	vector<int> mChildIDs;
 	int         mParent;
 	cnt_base()
-		:mCnt(5,0)
+		:mCnt(100,0)
 	{
 		mID = sMaxID ++;
 	}
@@ -517,6 +517,9 @@ if(1){
 			gobj.mClassID = 1;
 		if(gobj.mProps["ActivityCategory_ER_RBA"] == "inactive")
 			gobj.mClassID = 0;
+		if(gobj.mProps.find("ActivityScore_NCTRER") != gobj.mProps.end()){
+			gobj.mClassID = boost::lexical_cast<int>(gobj.mProps["ActivityScore_NCTRER"]);
+		}
 	}
 }
 	bool force_reread = gCfg().getBool("count.recount");
