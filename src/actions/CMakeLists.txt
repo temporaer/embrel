@@ -17,8 +17,8 @@ include_directories(
 add_library( actions SHARED 
     action_cfg.cpp 
 	action.hpp action.cpp
-    count.hpp count.cpp
+    #count.hpp count.cpp
 	code_data_gen.cpp
 )
 
-target_link_libraries( actions gnuplotcpp erltools )
+target_link_libraries( actions gnuplotcpp erltools ${MATIO_LIBRARIES})
