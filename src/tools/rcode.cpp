@@ -81,8 +81,12 @@ RCode::pcm_xgrad(unsigned int x, unsigned int dim){
 
 	for(unsigned int y=0;y<mPxy.size2();y++){
 		precision dif = ( mXpos(x,dim)-mYpos(y,dim) );
+#if 0
 		v-= mPxy(x,y)    * dif;
 		v+= mMx(x)*mMy(y)* dif;
+#else
+		v+= (1-mPxy(x,y)) * dif;
+#endif
 	}
 	
 	return 0;
@@ -94,8 +98,12 @@ RCode::pcm_ygrad(unsigned int y, unsigned int dim){
 
 	for(unsigned int x=0;x<mPxy.size1();x++){
 		precision dif = ( mXpos(x,dim)-mYpos(y,dim) );
+#if 0
 		v-= mPxy(x,y)* dif;
 		v+= mMx(x)   * dif;
+#else
+		v-= (1-mPxy(x,y)) * dif;
+#endif
 	}
 	
 	return v;
