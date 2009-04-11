@@ -638,8 +638,8 @@ void CODE_data_gen::writeObsChildren(ostream& os, CoocReader&cr, int obsnr)
 	for(unsigned int f=0;f<ofmat.size2();f++){
 		if(ofmat(obsnr,f) == 0)
 			continue;
-		if(cr.mFeaDesc[f].mIgnore)
-			continue;
+		//if(cr.mFeaDesc[f].mIgnore)
+			//continue;
 		os << boost::format("<child id='%s' color='0xFF0000'/>")%cr.mFeaDesc[f].mId;
 	}
 }
