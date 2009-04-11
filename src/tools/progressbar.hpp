@@ -17,7 +17,7 @@ class ProgressBar {
       ivStartTime = boost::posix_time::second_clock::local_time();
       display();
     }
-    inline void inc(char*info,int v=1){
+    inline void inc(const char*info,int v=1){
       ivCurrent += v;
       display(info);
     }
@@ -28,7 +28,7 @@ class ProgressBar {
     inline void finish(bool clear=false){
       if(clear){
         std::cout << "\r";
-        for(uint i=0;i<std::min((unsigned int)79,ivCWidth + ivClearLen + 60 + ivpDesc.size()); i++)
+        for(uint i=0;i<std::min((unsigned int)79,(unsigned int)(ivCWidth + ivClearLen + 60 + ivpDesc.size())); i++)
 	  std::cout << " ";
         std::cout<<"\r"<<std::flush;
       }
@@ -49,7 +49,7 @@ class ProgressBar {
     int ivCWidth;
     int ivCPos;
 
-    void display(char* info=""){
+    void display(const char* info=""){
       double newpos_f = ((double)ivCurrent / (double) ivMax);
       int    newpos   = (int)(ivCWidth * newpos_f);
       if(newpos == ivCPos) return;
