@@ -10,6 +10,12 @@ class RProp{
 		typedef signed char sign_t;
 		typedef boost::numeric::ublas::vector<precision> vec_t;
 		typedef boost::numeric::ublas::vector<sign_t> sign_vec_t;
+
+		enum ARPROP_evalres{
+			ARPROP_DIR_OK,
+			ARPROP_DIR_WRONG,
+			ARPROP_DIR_IGNORE
+		};
 	private:
 		// parameters
 		precision   mNuPlus;    // 0 < NuMinus < 1 < NuPlus
@@ -52,6 +58,7 @@ class RProp{
 		inline const precision&   getDeltaW(unsigned int i)const{ return mDeltaW(i); }
 
 		/// perform a 2-step update: 1) delta-w is updated 2) update-values are updated
+		void update(ARPROP_evalres);
 		void update();
 };
 
