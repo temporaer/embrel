@@ -11,24 +11,6 @@
 
 #define foreach BOOST_FOREACH 
 
-#define SQ_NORM(X,Y) \
-  (pow(mXpos(X,0)-mYpos(Y,0),2.0) + \
-  pow(mXpos(X,1)-mYpos(Y,1),2.0))
-
-#define P_UM
-#ifdef P_UU
-#	define MARGINALS_PLUS(X,Y) 0
-#	define MARGINALS_TIMES(X,Y) 1
-#elif defined P_UM
-#	define MARGINALS_PLUS(X,Y)  mMy(Y)
-#	define MARGINALS_TIMES(X,Y) mMy(Y)
-#elif defined P_MU
-#	define MARGINALS_PLUS(X,Y)  mMx(X)
-#	define MARGINALS_TIMES(X,Y) mMx(X)
-#elif defined P_MM
-#	define MARGINALS_PLUS(X,Y)  mMx(X) + mMy(Y)
-#	define MARGINALS_TIMES(X,Y) mMx(X) * mMy(Y)
-#endif
 
 #include <iostream>
 #include <boost/numeric/ublas/io.hpp>
@@ -62,8 +44,8 @@ RCode::run(int dim){
 	
 
 		// calculate update
-		rp.update((lastloglik<loglik)?RProp::ARPROP_DIR_OK:RProp::ARPROP_DIR_WRONG);
-		//rp.update();
+		//rp.update((lastloglik<loglik)?RProp::ARPROP_DIR_OK:RProp::ARPROP_DIR_WRONG);
+		rp.update();
 		lastloglik = loglik;
 
 		// apply update
@@ -103,63 +85,39 @@ void mat_mult_rows(Mat& m, const Vec& v){
 }
 
 double 
-RCode::calculate_gradient(RProp& rp){
-#if 0
-	precision Z(0),loglik(0);
-	for(unsigned int x=0;x<mPxy.size1();x++){
-		for(unsigned int y=0;y<mPxy.size2();y++){
-			precision sq_sum(0);
-			for(unsigned int d=0;d<mDim;d++){
-				sq_sum += pow(mXpos(x,d)-mYpos(y,d),2);
-			}
-			Z+=MARGINALS_TIMES(x,y)*exp(-sq_sum);
-		}
-	}
-	precision logZ(log(Z));
-	ExactDescriptiveStatistics elemstat;
-	for(unsigned int x=0;x<mPxy.size1();x++){
-		for(unsigned int y=0;y<mPxy.size2();y++){
-			precision d2 = SQ_NORM(x,y);
-			loglik   += mPxy(x,y)*(-logZ-d2 + log(MARGINALS_TIMES(x,y)));
-			elemstat += -d2+MARGINALS_PLUS(x,y);
-		}
-	}
-	// my method. works, but slow.
-	RProp::vec_t::iterator grad_pos = rp.getGrad().begin();
-	for(unsigned int dim=0;dim<mDim;dim++)
-		for(unsigned int x=0;x<mPxy.size1();x++)
-			*grad_pos++ = (this->*dl_dphix)(x,dim,Z);
-	for(unsigned int dim=0;dim<mDim;dim++)
-		for(unsigned int y=0;y<mPxy.size2();y++)
-			*grad_pos++ = (this->*dl_dpsiy)(y,dim,Z);
-	return loglik;
-#else
+RCode::calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, const mat_t& xpos, const mat_t& ypos, const vec_t& a, const vec_t& b, mat_t& xgrad, mat_t& ygrad){
+	unsigned int nx = pxy.size1();
+	unsigned int ny = pxy.size2();
 	precision max_elem(-1E9);
-	for(unsigned int x=0;x<mPxy.size1();x++){
-		for(unsigned int y=0;y<mPxy.size2();y++){
-			precision tmp = - SQ_NORM(x,y) + MARGINALS_PLUS(x,y);
+	for(unsigned int x=0;x<nx;x++){
+		matrix_row<const mat_t> phi(xpos,x);
+		for(unsigned int y=0;y<ny;y++){
+			precision dist(0);
+			matrix_row<const mat_t> psi(ypos,y);
+			matrix_row<const mat_t>::iterator p_phi=phi.begin(),phi_end=phi.end(), p_psi=psi.begin();
+			do{ precision d = *p_phi++-*p_psi++; dist+=d*d; }while(p_phi!=phi_end);
+			precision tmp = - dist + a(x)+b(y);
 			if(max_elem < tmp)
 				max_elem=tmp;
 		}
 	}
-	unsigned int nx = mPxy.size1();
-	unsigned int ny = mPxy.size2();
 	mat_t phi_expect_m(ny,mDim,0), psi_expect_m(nx,mDim,0);
 	vec_t px(nx,0), py(ny,0);
 	precision loglik=0, Z=0;
 	for(unsigned int y=0;y<ny;y++){
-		matrix_row<mat_t> psi(mYpos,y);
+		matrix_row<const mat_t> psi(ypos,y);
 		for(unsigned int x=0;x<nx;x++){
 			precision tmp(0),dist(0);
-			matrix_row<mat_t> phi(mXpos,x);
-			matrix_row<mat_t>::iterator p_phi=phi.begin(),phi_end=phi.end(), p_psi=psi.begin();
+			matrix_row<const mat_t> phi(xpos,x);
+			matrix_row<const mat_t>::iterator p_phi=phi.begin(),phi_end=phi.end(), p_psi=psi.begin();
 			do{ precision d = *p_phi++-*p_psi++; dist+=d*d; }while(p_phi!=phi_end);
-			tmp = -dist+MARGINALS_PLUS(x,y)-max_elem; // makes sure exp(0) is largest value, regardless of current dist(x,y)
-			loglik += mPxy(x,y)*tmp;
-			//tmp = exp(tmp);
-			tmp = MARGINALS_TIMES(x,y)*exp(-dist);
-			row(phi_expect_m,y) += tmp*row(mXpos,x);
-			row(psi_expect_m,x) += tmp*row(mYpos,y);
+			tmp = -dist+a(x)+b(y)-max_elem; // makes sure exp(0) is largest value, regardless of current dist(x,y)
+			loglik += pxy(x,y)*tmp;
+			tmp = exp(tmp);
+			//tmp = a(x)*b(y)*exp(-dist);
+			//tmp = exp(-dist);
+			row(phi_expect_m,y) += tmp*row(xpos,x);
+			row(psi_expect_m,x) += tmp*row(ypos,y);
 			px(x) += tmp;
 			py(y) += tmp;
 			Z     += tmp;
@@ -172,35 +130,60 @@ RCode::calculate_gradient(RProp& rp){
 	psi_expect_m *= Z_inv;
 	loglik       -= log(Z);
 
-	mat_t xgrad(mXpos), ygrad(mYpos);
-	mat_t phi_exp_d = prod(trans(mPxy),mXpos);
-	mat_t psi_exp_d = prod(mPxy,mYpos);
-	RProp::vec_t& grad = rp.getGrad();
-	unsigned int ystart=mDim*nx;
+	xgrad = xpos; ygrad=ypos;
+	mat_t phi_exp_d = prod(trans(pxy),xpos);
+	mat_t psi_exp_d = prod(pxy,ypos);
 
 
 	// x gradient
-	px        -= mMx; 
+	px        -= mx; 
 	mat_mult_rows(xgrad,px);
 	psi_exp_d -= psi_expect_m;
 	xgrad     += psi_exp_d;
-	for(unsigned int d=0;d<mDim;d++){
-		vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
-		xrange = column(xgrad,d);
-	}
 
 	// y gradient
-	py        -= mMy;
+	py        -= my;
 	mat_mult_rows(ygrad,py);
 	phi_exp_d -= phi_expect_m;
 	ygrad     += phi_exp_d;
-	for(unsigned int d=0;d<mDim;d++){
-		vector_range<RProp::vec_t> yrange (grad, range(ystart+d*ny,ystart+(d+1)*ny));
-		yrange = column(ygrad,d);
-	}
 
 	return loglik;
-#endif
+}
+
+double 
+RCode::calculate_gradient(RProp& rp){
+	RProp::vec_t& grad = rp.getGrad();
+	grad *= 0; // accumulate here
+	precision loglik(0);
+
+	unsigned int nx = mPxy.size1();
+	unsigned int ny = mPxy.size2();
+	unsigned int ystart=mDim*nx;
+	mat_t xgrad, ygrad;
+	vec_t a=  0 ? mMx : zero_vector<double>(nx);
+	vec_t b=  1 ? mMy : zero_vector<double>(ny);
+
+	loglik += calculate_gradient(mPxy,mMx,mMy,mXpos,mYpos,a,b,xgrad,ygrad);
+	
+	for(unsigned int d=0;d<mDim;d++){
+		vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
+		xrange += column(xgrad,d);
+		//xrange += zero_vector<double>(nx);
+	}
+	for(unsigned int d=0;d<mDim;d++){
+		vector_range<RProp::vec_t> yrange (grad, range(ystart+d*ny,ystart+(d+1)*ny));
+		yrange += column(ygrad,d);
+		//yrange += zero_vector<double>(ny);
+	}
+
+	double alpha = (double)nx/ny;
+	loglik  = (1-alpha)*loglik + alpha*calculate_gradient(mPxx,mMxx,mMxx,mXpos,mXpos,a,a,xgrad,ygrad);
+	xgrad  *= alpha;
+	for(unsigned int d=0;d<mDim;d++){
+		vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
+		xrange += column(xgrad,d);
+	}
+	return loglik;
 }
 
 void 
@@ -222,6 +205,7 @@ RCode::prepare_marginals(){
 RCode::precision 
 RCode::pcm_xgrad(unsigned int x, unsigned int dim, double Z){
 	precision v(0);
+#if 0
 	//cout <<"."<<flush;
 
 	precision tmp(0);
@@ -241,6 +225,7 @@ RCode::pcm_xgrad(unsigned int x, unsigned int dim, double Z){
 	for(unsigned int y1=0;y1<mPxy.size2();y1++)
 		v -= mPxy(x,y1)*( mXpos(x,dim)-mYpos(y1,dim) );
 	
+#endif
 	return 2*v;
 }
 RCode::precision 
@@ -248,6 +233,7 @@ RCode::pcm_ygrad(unsigned int y, unsigned int dim, double Z){
 	precision v(0);
 	//cout <<"."<<flush;
 
+#if 0
 	precision tmp(0);
 	for(unsigned int x=0;x<mPxy.size1();x++){
 		precision dif = ( mXpos(x,dim)-mYpos(y,dim) );
@@ -265,5 +251,6 @@ RCode::pcm_ygrad(unsigned int y, unsigned int dim, double Z){
 	for(unsigned int x1=0;x1<mPxy.size1();x1++)
 		v -= mPxy(x1,y)*( mXpos(x1,dim)-mYpos(y,dim) );
 	
+#endif
 	return -2*v;
 }

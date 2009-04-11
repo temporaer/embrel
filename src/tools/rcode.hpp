@@ -38,8 +38,10 @@ class RCode{
 		template <class T>
 		void setPxx(const T& m, bool div=true){
 			mPxx  = m; 
-			if(div)
-				mPxx /= boost::numeric::ublas::sum(mPxx); 
+			if(div){
+				double sum = boost::numeric::ublas::sum(mPxx); 
+				mPxx /= sum;
+			}
 		}
 
 		double run(int dim);
@@ -47,7 +49,7 @@ class RCode{
 		void init_positions();
 		void prepare_marginals();
 		double calculate_gradient(RProp&);
-
+		double calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, const mat_t& xpos, const mat_t& ypos, const vec_t& a, const vec_t& b, mat_t& xgrad, mat_t& ygrad);
 
 		/// function pointer to the derivative of the log-likelihood 
 		precision (RCode::*dl_dphix) (unsigned int x, unsigned int dim, double Z);
