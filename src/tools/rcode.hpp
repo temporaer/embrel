@@ -42,19 +42,20 @@ class RCode{
 				mPxx /= boost::numeric::ublas::sum(mPxx); 
 		}
 
-		void run(int dim);
+		double run(int dim);
 	private:
 		void init_positions();
 		void prepare_marginals();
+		double calculate_gradient(RProp&);
 
 
 		/// function pointer to the derivative of the log-likelihood 
-		precision (RCode::*dl_dphix) (unsigned int x, unsigned int dim);
+		precision (RCode::*dl_dphix) (unsigned int x, unsigned int dim, double Z);
 		/// function pointer to the derivative of the log-likelihood 
-		precision (RCode::*dl_dpsiy) (unsigned int x, unsigned int dim);
+		precision (RCode::*dl_dpsiy) (unsigned int x, unsigned int dim, double Z);
 
-		precision pcm_xgrad(unsigned int x, unsigned int dim);
-		precision pcm_ygrad(unsigned int y, unsigned int dim);
+		precision pcm_xgrad(unsigned int x, unsigned int dim, double Z);
+		precision pcm_ygrad(unsigned int y, unsigned int dim, double Z);
 };
 
 #endif /* __RCODE_HPP__ */
