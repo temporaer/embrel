@@ -383,20 +383,25 @@ void CODE_data_gen::run(){
 		RCode rc;
 		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
 		rc.setPxx(*cr.getFeatFeatMat());
-		rc.run(2);
-		ofstream os1("/tmp/erl/fea.txt");
-		for(unsigned int i=0;i<rc.mXpos.size1();i++) {
-			ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
-			copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
-			os1<<endl;
+		double lastLogLik=-1E9;
+		for(int i=0;i<5;i++){
+			double loglik = rc.run(2);
+			if(loglik<lastLogLik) continue;
+			lastLogLik = loglik;
+			ofstream os1("/tmp/erl/fea.txt");
+			for(unsigned int i=0;i<rc.mXpos.size1();i++) {
+				ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
+				copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
+				os1<<endl;
+			}
+			ofstream os2("/tmp/erl/cla.txt");
+			for(unsigned int i=0;i<rc.mYpos.size1();i++) {
+				ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
+				copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
+				os2<<endl;
+			}
+			os1.close(), os2.close();
 		}
-		ofstream os2("/tmp/erl/cla.txt");
-		for(unsigned int i=0;i<rc.mYpos.size1();i++) {
-			ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
-			copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
-			os2<<endl;
-		}
-		os1.close(), os2.close();
 			
 #else
 		CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
