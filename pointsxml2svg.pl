@@ -59,7 +59,7 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 	}
 
 	if($objtype == 0){
-		#$grp->circle(cx=>$xpos, cy=>$ypos, r=>$size, id=>$id, style => {fill=>$color, opacity => 0.8});
+		$grp->circle(cx=>$xpos, cy=>$ypos, r=>$size, id=>$id, style => {fill=>$color, opacity => 0.8});
 	}else{
 		#$size*=2;
 		my @xv = (-$size  , 0      ,$size);
