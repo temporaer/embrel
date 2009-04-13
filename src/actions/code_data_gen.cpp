@@ -467,7 +467,7 @@ void CODE_data_gen::run(){
 	ProgressBar pb2a(cr.mFeaDesc.size(),"dist_vs_norm");
 	foreach(feature& f1, cr.mFeaDesc){
 		foreach(feature& f2, cr.mFeaDesc){
-			dist_vs_norm << ublas::norm_2(f1.mPos-f2.mPos);
+			dist_vs_norm << pow(ublas::norm_2(f1.mPos-f2.mPos),2.0);
 			dist_vs_norm << " ";
 			ublas::matrix_column<CoocReader::matrix_itype> c1(*cr.getObsFeatMat(),f1.mRunningNumber);
 			ublas::matrix_column<CoocReader::matrix_itype> c2(*cr.getObsFeatMat(),f2.mRunningNumber);
