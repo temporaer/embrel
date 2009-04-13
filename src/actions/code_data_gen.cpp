@@ -384,7 +384,8 @@ void CODE_data_gen::run(){
 		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
 		rc.setPxx(*cr.getFeatFeatMat());
 		double lastLogLik=-1E9;
-		for(int i=0;i<5;i++){
+		int n_restarts = gCfg().getInt("code.nrestarts");
+		for(int i=0;i<n_restarts;i++){
 			double loglik = rc.run(2);
 			if(loglik<lastLogLik) continue;
 			lastLogLik = loglik;

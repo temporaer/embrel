@@ -25,6 +25,12 @@ ActionCfg::ActionCfg(){
 		("code.delete_perc", value<float>()->default_value(0.98), "Delete this many percent of features")
 		("code.size_fact", value<float>()->default_value(1.0), "Multiply Size with this")
 		("code.pos_rand", value<float>()->default_value(0.0), "Random position increment uniform (pixels)")
+
+		("code.nrestarts",value<int>()->default_value(1),"# random restarts")
+		("code.dont_use_pxy",bool_switch(),"don't use observation-query statistics")
+		("code.dont_use_pxx",bool_switch(),"don't use query-query statistics")
+		("code.model",value<string>()->default_value("UM"),"CODE model to use")
+		("code.rprop_maxiter",value<int>()->default_value(300),"Max Num of RPROP iterations")
 		;
 	options_description count("  Count Options");
 	count.add_options()

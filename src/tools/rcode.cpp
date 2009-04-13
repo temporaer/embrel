@@ -5,6 +5,7 @@
 #include <boost/numeric/ublas/vector_proxy.hpp>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
+#include <configuration.hpp>
 #include "stats.hpp"
 #include "progressbar.hpp"
 #include "rcode.hpp"
@@ -30,22 +31,22 @@ RCode::run(int dim){
 
 	RProp rp(mPxy.size1()*mDim + mPxy.size2()*mDim);
 
-	int max_iter=300,iter=0;
+	int max_iter=gCfg().getInt("code.rprop_maxiter"),iter=0;
 	precision lastloglik(0);
 	ProgressBar pb(max_iter,"RCode");
-	RunningDescriptiveStatistics stats(20);
+	RunningDescriptiveStatistics stats(50);
 	for(;iter<max_iter;iter++){
 
 		// calculate gradient
 		precision loglik = calculate_gradient(rp);
 		pb.inc((boost::format("loglik=%3.5f")%loglik).str().c_str(),1);
 		stats += fabs(lastloglik-loglik);
-		if(stats.getMean() < 0.00001) break;
+		if(stats.getMean() < 0.000001) break;
 	
 
 		// calculate update
-		//rp.update((lastloglik<loglik)?RProp::ARPROP_DIR_OK:RProp::ARPROP_DIR_WRONG);
-		rp.update();
+		rp.update((lastloglik<loglik)?RProp::ARPROP_DIR_OK:RProp::ARPROP_DIR_WRONG);
+		//rp.update();
 		lastloglik = loglik;
 
 		// apply update
@@ -160,28 +161,30 @@ RCode::calculate_gradient(RProp& rp){
 	unsigned int ny = mPxy.size2();
 	unsigned int ystart=mDim*nx;
 	mat_t xgrad, ygrad;
-	vec_t a=  0 ? mMx : zero_vector<double>(nx);
-	vec_t b=  1 ? mMy : zero_vector<double>(ny);
+	string model = gCfg().getString("code.model");
+	vec_t a=  model[0]=='M' ? mMx : zero_vector<double>(nx);
+	vec_t b=  model[1]=='M' ? mMy : zero_vector<double>(ny);
 
-	loglik += calculate_gradient(mPxy,mMx,mMy,mXpos,mYpos,a,b,xgrad,ygrad);
-	
-	for(unsigned int d=0;d<mDim;d++){
-		vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
-		xrange += column(xgrad,d);
-		//xrange += zero_vector<double>(nx);
-	}
-	for(unsigned int d=0;d<mDim;d++){
-		vector_range<RProp::vec_t> yrange (grad, range(ystart+d*ny,ystart+(d+1)*ny));
-		yrange += column(ygrad,d);
-		//yrange += zero_vector<double>(ny);
+	if(!gCfg().getBool("code.dont_use_pxy")){
+		loglik += calculate_gradient(mPxy,mMx,mMy,mXpos,mYpos,a,b,xgrad,ygrad);
+		for(unsigned int d=0;d<mDim;d++){
+			vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
+			xrange += column(xgrad,d);
+		}
+		for(unsigned int d=0;d<mDim;d++){
+			vector_range<RProp::vec_t> yrange (grad, range(ystart+d*ny,ystart+(d+1)*ny));
+			yrange += column(ygrad,d);
+		}
 	}
 
-	double alpha = (double)nx/ny;
-	loglik  = (1-alpha)*loglik + alpha*calculate_gradient(mPxx,mMxx,mMxx,mXpos,mXpos,a,a,xgrad,ygrad);
-	xgrad  *= alpha;
-	for(unsigned int d=0;d<mDim;d++){
-		vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
-		xrange += column(xgrad,d);
+	if(!gCfg().getBool("code.dont_use_pxx")){
+		double alpha = (double)nx/ny;
+		loglik += alpha*calculate_gradient(mPxx,mMxx,mMxx,mXpos,mXpos,a,a,xgrad,ygrad);
+		xgrad  *= alpha;
+		for(unsigned int d=0;d<mDim;d++){
+			vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
+			xrange += column(xgrad,d);
+		}
 	}
 	return loglik;
 }
