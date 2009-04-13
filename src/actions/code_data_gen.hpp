@@ -118,6 +118,9 @@ class CoocReader : public CSVReader{
 		inline matrix_pitype getObsFeatMat(){return mObsFeatMat;}
 		inline matrix_pdtype getFeatFeatMat(){return mFeatFeatMat;}
 
+		void load_feat_pos(const std::string& fn);
+		void load_obs_pos(const std::string& fn);
+
 		template <class T> void visit_observations(T& visitor);
 		template <class T> void visit_features(T& visitor);
 };
@@ -142,6 +145,7 @@ class CODE_data_gen : public Action{
 		virtual ~CODE_data_gen();
 		virtual void operator()(){ this->run(); }
 		void run();
+		void run_code(RCode& rc, CoocReader& cr, bool load_fea_pos);
 		void writeObsChildren(std::ostream& os, CoocReader&cr, int obsnr);
 		void writeFeaChildren(std::ostream& os, CoocReader&cr, int feanr);
 };

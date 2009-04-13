@@ -25,8 +25,21 @@ class RCode{
 		mat_t        mXpos;    ///< position of X objects
 		mat_t        mYpos;    ///< position of Y objects
 
+		// some general parameters
+		bool         mUse_Pxx; ///< whether to use pxx matrix
+		bool         mUse_Pxy; ///< whether to use pxy matrix
+		std::string  mModel;   ///< model (one of as UU, UM, MU, MM)
+		int          mRPropMaxIter; ///< maximum rprop iterations
+		bool         mFixXpos; ///< whether to fix the x positions
+		bool         mFixYpos; ///< whether to fix the y positions
 
+	private:
+		bool         mPosInitialized; ///< whether positions were initialized
+
+
+	public:
 		/// Constructor
+		RCode(int dim):mDim(dim),mPosInitialized(false){}
 
 		template <class T>
 		void setPxy(const T& m, bool div=true){ 
@@ -44,9 +57,10 @@ class RCode{
 			}
 		}
 
-		double run(int dim);
-	private:
+		double run();
 		void init_positions();
+		void configure();
+	private:
 		void prepare_marginals();
 		double calculate_gradient(RProp&);
 		double calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, const mat_t& xpos, const mat_t& ypos, const vec_t& a, const vec_t& b, mat_t& xgrad, mat_t& ygrad);

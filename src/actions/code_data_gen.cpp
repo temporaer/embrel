@@ -69,6 +69,7 @@ CoocReader::CoocReader()
 }
 void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfields){
 	if(lidx==0 && idx==0){
+		cout << "mObsFeatMat size: " << mLines << " x " << (numfields-2) << endl;
 		mObsFeatMat.reset(new matrix_itype(mLines,numfields-2));
 		*mObsFeatMat = ublas::zero_matrix<int>(mLines,numfields-2);
 	}
@@ -297,13 +298,6 @@ if(gCfg().getBool("code.remove_sim")){
 	}
 }
 
-
-CODE_data_gen::~CODE_data_gen(){
-}
-
-void CODE_data_gen::configure(){
-}
-
 template<class T>
 struct PosReader : CSVReader{
 	T& mVec;
@@ -318,6 +312,29 @@ struct PosReader : CSVReader{
 		mVec[lidx].mPos[idx] = boost::lexical_cast<double>(s);
 	}
 };
+
+void
+CoocReader::load_obs_pos(const string& fn){
+	PosReader<vector<observation> > pr(mObsDesc);
+	ifstream obs_stream(fn.c_str());
+	pr.read(obs_stream);
+	obs_stream.close();
+}
+void
+CoocReader::load_feat_pos(const string& fn){
+	ifstream fea_stream(fn.c_str());
+	PosReader<vector<feature> >     pr(mFeaDesc);
+	pr.read(fea_stream);
+	fea_stream.close();
+}
+
+
+CODE_data_gen::~CODE_data_gen(){
+}
+
+void CODE_data_gen::configure(){
+}
+
 
 void CODE_data_gen::run(){
 	// read input file
@@ -359,16 +376,6 @@ void CODE_data_gen::run(){
 		ar << cr;
 	}
 
-#if 0
-	cout << "weight cooccurrence by entropy"<<endl;
-	ExactDescriptiveStatistics estat;
-	estat.notify(cr.mFeaDesc.begin(), cr.mFeaDesc.end(), ll::bind(&feature::mEntropy,ll::_1));
-	for(unsigned int i=0;i<cr.getObsFeatMat()->size2();i++){
-		ublas::matrix_column<CoocReader::matrix_itype> col(*cr.getObsFeatMat(),i);
-		col *= normalize_minmax(cr.mFeaDesc[i].mEntropy,0.0,1.0,estat);
-		//col /= accumulate(col.begin(),col.end(),0.0);
-	}
-#endif
 	//foreach(feature& f, cr.mFeaDesc){
 		//f.mSize = f.mFreq;
 	//}
@@ -378,60 +385,46 @@ void CODE_data_gen::run(){
 
 	// call matlab.
 	if(!gCfg().getBool("code.dont_run_code")){
-#define USE_RCODE 1
-#if USE_RCODE
-		RCode rc;
+		RCode rc(2);
+		rc.configure();
 		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
 		rc.setPxx(*cr.getFeatFeatMat());
-		double lastLogLik=-1E9;
-		int n_restarts = gCfg().getInt("code.nrestarts");
-		for(int i=0;i<n_restarts;i++){
-			double loglik = rc.run(2);
-			if(loglik<lastLogLik) continue;
-			lastLogLik = loglik;
-			ofstream os1("/tmp/erl/fea.txt");
-			for(unsigned int i=0;i<rc.mXpos.size1();i++) {
-				ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
-				copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
-				os1<<endl;
-			}
-			ofstream os2("/tmp/erl/cla.txt");
-			for(unsigned int i=0;i<rc.mYpos.size1();i++) {
-				ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
-				copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
-				os2<<endl;
-			}
-			os1.close(), os2.close();
-		}
-			
+		rc.init_positions(); // randomly
+#if 0
+		run_code(rc,cr,false);
 #else
-		CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
-		CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
-		cout << "writing matrices to matlab file..."<<flush;
-		if(matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea))
-			throw runtime_error(string("could not write feat_feat"));
-		CoocReader::matrix_itype tmpmat(ublas::trans(obsfea));
-		if(matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat))
-			throw runtime_error(string("could not write feat_klass"));
-		cout <<"done."<<endl;
+		rc.mUse_Pxx = true;
+		rc.mUse_Pxy = true;
+		rc.mFixXpos = false;
+		rc.mFixYpos = false;
+		run_code(rc,cr,false); // use only feat pos
 
-		chdir("../../src/matlab");
-		const char* matlab_out = "/tmp/matlab.out";
-		int res = system(
-				(boost::format("MALLOC_CHECK_=1 matlab -glnxa64 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
-		if(res == -1)
-			throw runtime_error(std::string("Matlab execution failed!"));
-		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
-			throw runtime_error(std::string("Got interrupted."));
+#if 1
+		cout << "weighing cooccurrence by squared normalized entropy..."<<flush;
+		ExactDescriptiveStatistics estat;
+		estat.notify(cr.mFeaDesc.begin(), cr.mFeaDesc.end(), ll::bind(&feature::mEntropy,ll::_1));
+		for(unsigned int i=0;i<cr.getObsFeatMat()->size2();i++){
+			ublas::matrix_column<CoocReader::matrix_itype> col(*cr.getObsFeatMat(),i);
+			col *= pow(normalize_minmax(cr.mFeaDesc[i].mEntropy,0.0,1.0,estat),2);
+		}
+		for(unsigned int i=0;i<cr.getObsFeatMat()->size1();i++){
+			ublas::matrix_row<CoocReader::matrix_itype> row(*cr.getObsFeatMat(),i);
+			row /= accumulate(row.begin(),row.end(),0.0);
+		}
+		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
+		rc.setPxx(*cr.getFeatFeatMat());
+		cout <<"done."<<endl;
+#endif
+		rc.mUse_Pxx = false;
+		rc.mUse_Pxy = true;
+		rc.mFixXpos = true;
+		rc.mFixYpos = false;
+		run_code(rc,cr,true); // load previously determined feat pos
 #endif
 	}
 
-	PosReader<vector<feature> >     pr_fea(cr.mFeaDesc);
-	PosReader<vector<observation> > pr_obs(cr.mObsDesc);
-	ifstream fea_stream("/tmp/erl/fea.txt");
-	ifstream obs_stream("/tmp/erl/cla.txt");
-	pr_fea.read(fea_stream);
-	pr_obs.read(obs_stream);
+	cr.load_feat_pos("/tmp/erl/fea.txt");
+	cr.load_obs_pos("/tmp/erl/cla.txt");
 
 	CoocReader::featpos fp;
 	foreach(feature& f, cr.mFeaDesc){
@@ -472,7 +465,7 @@ void CODE_data_gen::run(){
 			ublas::matrix_column<CoocReader::matrix_itype> c1(*cr.getObsFeatMat(),f1.mRunningNumber);
 			ublas::matrix_column<CoocReader::matrix_itype> c2(*cr.getObsFeatMat(),f2.mRunningNumber);
 			double c=0;
-			for(int i=0;i<c1.size();i++) {
+			for(unsigned int i=0;i<c1.size();i++) {
 				if(c1[i]>0 && c2[i]>0)
 					c++;
 			}
@@ -493,7 +486,7 @@ void CODE_data_gen::run(){
 			CoocReader::featpos fp;
 			fp.mFeat = &query;
 			vector<CoocReader::featpos> res;
-			float range = 0.1;
+			float range = 0.01;
 			float tmp = -1E6;
 			do{
 				res.clear();
@@ -631,6 +624,58 @@ void CODE_data_gen::run(){
 	system("cd /home/schulzha/checkout/embrel ; perl pointsxml2svg.pl /tmp/erl/points.xml");
 	system("convert /tmp/erl/points-static.svg /tmp/erl/points.png");
 	//system("/usr/bin/play -q /usr/lib/xcdroast/sound/test.wav 2>&1>/dev/null");
+}
+
+void CODE_data_gen::run_code(RCode& rc, CoocReader& cr, bool load_fea_pos){
+#define USE_RCODE 1
+#if USE_RCODE
+		if(load_fea_pos){
+			cr.load_feat_pos("/tmp/erl/fea.txt");
+			for(unsigned int i=0;i<cr.mFeaDesc.size();i++){
+				ublas::row(rc.mXpos,i) = cr.mFeaDesc[i].mPos;
+			}
+		}
+		double lastLogLik=-1E9;
+		int n_restarts = gCfg().getInt("code.nrestarts");
+		for(int i=0;i<n_restarts;i++){
+			double loglik = rc.run();
+			if(loglik<lastLogLik) continue;
+			lastLogLik = loglik;
+			ofstream os1("/tmp/erl/fea.txt");
+			for(unsigned int i=0;i<rc.mXpos.size1();i++) {
+				ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
+				copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
+				os1<<endl;
+			}
+			ofstream os2("/tmp/erl/cla.txt");
+			for(unsigned int i=0;i<rc.mYpos.size1();i++) {
+				ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
+				copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));
+				os2<<endl;
+			}
+			os1.close(), os2.close();
+		}
+			
+#else
+		CoocReader::matrix_itype& obsfea = *cr.getObsFeatMat();
+		CoocReader::matrix_dtype& feafea = *cr.getFeatFeatMat();
+		cout << "writing matrices to matlab file..."<<flush;
+		if(matlab_matrix_out("/tmp/code_data.mat","feat_feat",feafea))
+			throw runtime_error(string("could not write feat_feat"));
+		CoocReader::matrix_itype tmpmat(ublas::trans(obsfea));
+		if(matlab_matrix_out("/tmp/code_data.mat","feat_klass",tmpmat))
+			throw runtime_error(string("could not write feat_klass"));
+		cout <<"done."<<endl;
+
+		chdir("../../src/matlab");
+		const char* matlab_out = "/tmp/matlab.out";
+		int res = system(
+				(boost::format("MALLOC_CHECK_=1 matlab -glnxa64 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
+		if(res == -1)
+			throw runtime_error(std::string("Matlab execution failed!"));
+		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
+			throw runtime_error(std::string("Got interrupted."));
+#endif
 }
 
 void CODE_data_gen::writeObsChildren(ostream& os, CoocReader&cr, int obsnr)

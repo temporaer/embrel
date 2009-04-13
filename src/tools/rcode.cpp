@@ -20,10 +20,17 @@
 using namespace boost::numeric::ublas;
 using namespace std;
 
+void RCode::configure(){
+  mUse_Pxx = !gCfg().getBool("code.dont_use_pxx");
+  mUse_Pxy = !gCfg().getBool("code.dont_use_pxy");
+	mModel   = gCfg().getString("code.model");
+	mRPropMaxIter = gCfg().getInt("code.rprop_maxiter");
+}
+
 double
-RCode::run(int dim){
-	mDim=dim;
-	init_positions();
+RCode::run(){
+	if(!mPosInitialized)
+		init_positions();
 	prepare_marginals();
 
 	dl_dphix = &RCode::pcm_xgrad;
@@ -31,11 +38,11 @@ RCode::run(int dim){
 
 	RProp rp(mPxy.size1()*mDim + mPxy.size2()*mDim);
 
-	int max_iter=gCfg().getInt("code.rprop_maxiter"),iter=0;
+	int iter=0;
 	precision lastloglik(0);
-	ProgressBar pb(max_iter,"RCode");
+	ProgressBar pb(mRPropMaxIter,"RCode");
 	RunningDescriptiveStatistics stats(50);
-	for(;iter<max_iter;iter++){
+	for(;iter<mRPropMaxIter;iter++){
 
 		// calculate gradient
 		precision loglik = calculate_gradient(rp);
@@ -154,31 +161,35 @@ RCode::calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, co
 double 
 RCode::calculate_gradient(RProp& rp){
 	RProp::vec_t& grad = rp.getGrad();
-	grad *= 0; // accumulate here
+	grad *= 0; // accumulate gradient here
 	precision loglik(0);
 
 	unsigned int nx = mPxy.size1();
 	unsigned int ny = mPxy.size2();
 	unsigned int ystart=mDim*nx;
 	mat_t xgrad, ygrad;
-	string model = gCfg().getString("code.model");
-	vec_t a=  model[0]=='M' ? mMx : zero_vector<double>(nx);
-	vec_t b=  model[1]=='M' ? mMy : zero_vector<double>(ny);
+	vec_t a=  mModel[0]=='M' ? mMx : zero_vector<double>(nx);
+	vec_t b=  mModel[1]=='M' ? mMy : zero_vector<double>(ny);
 
-	if(!gCfg().getBool("code.dont_use_pxy")){
+	if(mUse_Pxy){
 		loglik += calculate_gradient(mPxy,mMx,mMy,mXpos,mYpos,a,b,xgrad,ygrad);
+
+		if(!mFixXpos)
 		for(unsigned int d=0;d<mDim;d++){
 			vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
 			xrange += column(xgrad,d);
 		}
+
+		if(!mFixYpos)
 		for(unsigned int d=0;d<mDim;d++){
 			vector_range<RProp::vec_t> yrange (grad, range(ystart+d*ny,ystart+(d+1)*ny));
 			yrange += column(ygrad,d);
 		}
 	}
 
-	if(!gCfg().getBool("code.dont_use_pxx")){
+	if(mUse_Pxx && !mFixXpos){
 		double alpha = (double)nx/ny;
+		//double alpha = (double)ny/nx;
 		loglik += alpha*calculate_gradient(mPxx,mMxx,mMxx,mXpos,mXpos,a,a,xgrad,ygrad);
 		xgrad  *= alpha;
 		for(unsigned int d=0;d<mDim;d++){
@@ -195,6 +206,7 @@ RCode::init_positions(){
 	mYpos = mat_t(mPxy.size2(),mDim);
 	random_init(mXpos,-2.0,2.0);
 	random_init(mYpos,-2.0,2.0);
+	mPosInitialized=true;
 }
 
 void
