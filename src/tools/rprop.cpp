@@ -27,8 +27,7 @@ RProp::RProp(unsigned int dim_grad)
 
 void RProp::update(ARPROP_evalres res){
 	if(ARPROP_DIR_OK){
-		const double q=2.0;
-		mDeltaW = pow(0.5,q) * mDeltaW;
+		mDeltaW *= 0.5;
 		return;
 	}
 	update();
