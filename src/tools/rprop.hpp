@@ -30,7 +30,7 @@ class RProp{
 		vec_t   mDeltaW;      ///< step width
 		sign_vec_t mGradSgn;     ///< a vector for keeping signs
 		sign_vec_t mOldGradSgn;  ///< a vector for keeping signs
-		sign_vec_t mProdSgn;   ///< a vector for keeping signs
+		sign_vec_t mProdSgn;     ///< a vector for keeping signs
 		
 
 	public:
