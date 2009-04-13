@@ -49,8 +49,8 @@ template < typename T>
 T sum(const matrix<T> & m)
 {
 	T s = T(0);
-	for(int row=0; row<m.size1(); row++)
-		for(int col=0; col<m.size2(); col++)
+	for(unsigned int row=0; row<m.size1(); row++)
+		for(unsigned int col=0; col<m.size2(); col++)
 			s+=m(row,col);
 
 	return s;
