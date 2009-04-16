@@ -13,7 +13,7 @@ using namespace boost::numeric::ublas;
 RProp::RProp(unsigned int dim_grad)
 : mNuPlus(1.2f)
 , mNuMinus(0.5f)
-, mDelta0(0.01f)
+, mDelta0(0.1f)
 , mDeltaMax(50)
 , mGrad(dim_grad,0)
 , mOldGrad(dim_grad,0)
