@@ -57,13 +57,13 @@ class RCode{
 			}
 		}
 
-		double run();
+		double run(int);
 		void init_positions();
 		void configure();
 	private:
 		void prepare_marginals();
 		double calculate_gradient(RProp&);
-		double calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, const mat_t& xpos, const mat_t& ypos, const vec_t& a, const vec_t& b, mat_t& xgrad, mat_t& ygrad);
+		double calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, const mat_t& xpos, const mat_t& ypos, const vec_t& a, const vec_t& b, const vec_t& a_mult, const vec_t& b_mult, mat_t& xgrad, mat_t& ygrad);
 
 		/// function pointer to the derivative of the log-likelihood 
 		precision (RCode::*dl_dphix) (unsigned int x, unsigned int dim, double Z);

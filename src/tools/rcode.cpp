@@ -3,6 +3,8 @@
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/vector_proxy.hpp>
+#include <fstream>
+#include <numeric>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <configuration.hpp>
@@ -23,12 +25,13 @@ using namespace std;
 void RCode::configure(){
   mUse_Pxx = !gCfg().getBool("code.dont_use_pxx");
   mUse_Pxy = !gCfg().getBool("code.dont_use_pxy");
-	mModel   = gCfg().getString("code.model");
+	mModel   =  gCfg().getString("code.model");
 	mRPropMaxIter = gCfg().getInt("code.rprop_maxiter");
 }
 
 double
-RCode::run(){
+RCode::run(int globaliter){
+	ofstream os((boost::format("/tmp/rcod%02d.txt")%globaliter).str().c_str());
 	if(!mPosInitialized)
 		init_positions();
 	prepare_marginals();
@@ -41,11 +44,12 @@ RCode::run(){
 	int iter=0;
 	precision lastloglik(0);
 	ProgressBar pb(mRPropMaxIter,"RCode");
-	RunningDescriptiveStatistics stats(50);
+	RunningDescriptiveStatistics stats(20);
 	for(;iter<mRPropMaxIter;iter++){
 
 		// calculate gradient
 		precision loglik = calculate_gradient(rp);
+		os   << boost::format("%03.9f")%-loglik << endl;
 		pb.inc((boost::format("loglik=%3.5f")%loglik).str().c_str(),1);
 		stats += fabs(lastloglik-loglik);
 		if(stats.getMean() < 0.000001) break;
@@ -93,18 +97,29 @@ void mat_mult_rows(Mat& m, const Vec& v){
 }
 
 double 
-RCode::calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, const mat_t& xpos, const mat_t& ypos, const vec_t& a, const vec_t& b, mat_t& xgrad, mat_t& ygrad){
+RCode::calculate_gradient(const mat_t& pxy, 
+	const vec_t& mx, const vec_t& my, 
+	const mat_t& xpos, const mat_t& ypos, 
+	const vec_t& a, const vec_t& b, 
+	const vec_t& a_mult, const vec_t& b_mult, 
+	mat_t& xgrad, mat_t& ygrad)
+{
+	ofstream os("/tmp/rcod_a.txt");
+	copy(a.begin(),a.end(),ostream_iterator<double>(os,"\n"));
+	os.close();
+
 	unsigned int nx = pxy.size1();
 	unsigned int ny = pxy.size2();
 	precision max_elem(-1E9);
-	for(unsigned int x=0;x<nx;x++){
-		matrix_row<const mat_t> phi(xpos,x);
-		for(unsigned int y=0;y<ny;y++){
-			precision dist(0);
-			matrix_row<const mat_t> psi(ypos,y);
-			matrix_row<const mat_t>::iterator p_phi=phi.begin(),phi_end=phi.end(), p_psi=psi.begin();
-			do{ precision d = *p_phi++-*p_psi++; dist+=d*d; }while(p_phi!=phi_end);
-			precision tmp = - dist + a(x)+b(y);
+	for(unsigned int y=0;y<ny;y++){
+		matrix_row<const mat_t> psi(ypos,y);
+		matrix_row<const mat_t>::iterator psi_begin=psi.begin(), psi_end=psi.end();
+		for(unsigned int x=0;x<nx;x++){
+			precision dist2(0);
+			matrix_row<const mat_t> phi(xpos,x);
+			matrix_row<const mat_t>::iterator p_phi=phi.begin(), p_psi=psi_begin;
+			do{ precision d = *p_phi++-*p_psi++; dist2+=d*d; }while(p_psi!=psi_end);
+			precision tmp = - dist2 + a(x)+b(y);
 			if(max_elem < tmp)
 				max_elem=tmp;
 		}
@@ -114,16 +129,21 @@ RCode::calculate_gradient(const mat_t& pxy, const vec_t& mx, const vec_t& my, co
 	precision loglik=0, Z=0;
 	for(unsigned int y=0;y<ny;y++){
 		matrix_row<const mat_t> psi(ypos,y);
+		matrix_row<const mat_t>::iterator psi_begin=psi.begin(), psi_end=psi.end();
 		for(unsigned int x=0;x<nx;x++){
-			precision tmp(0),dist(0);
+			precision tmp, dist2(0);
 			matrix_row<const mat_t> phi(xpos,x);
-			matrix_row<const mat_t>::iterator p_phi=phi.begin(),phi_end=phi.end(), p_psi=psi.begin();
-			do{ precision d = *p_phi++-*p_psi++; dist+=d*d; }while(p_phi!=phi_end);
-			tmp = -dist+a(x)+b(y)-max_elem; // makes sure exp(0) is largest value, regardless of current dist(x,y)
-			loglik += pxy(x,y)*tmp;
-			tmp = exp(tmp);
-			//tmp = a(x)*b(y)*exp(-dist);
-			//tmp = exp(-dist);
+			matrix_row<const mat_t>::iterator p_phi=phi.begin(), p_psi=psi_begin;
+			do{ precision d = *p_phi++-*p_psi++; dist2+=d*d; }while(p_psi!=psi_end);
+#if 1
+			tmp           = -dist2+a(x)+b(y)-max_elem; // in code_grad.c; max-elem makes sure exp(0) is largest value, regardless of current dist(x,y)
+			loglik       += pxy(x,y)*tmp; // in code_grad.c
+			tmp           = exp(tmp);     // in code_grad.c
+#else
+			// my version. does not really work as expected.
+			loglik       += pxy(x,y)*(-dist2+a(x)+b(y)-max_elem); 
+			tmp           = a_mult(x)*b_mult(y)*exp(-dist2);   
+#endif
 			row(phi_expect_m,y) += tmp*row(xpos,x);
 			row(psi_expect_m,x) += tmp*row(ypos,y);
 			px(x) += tmp;
@@ -168,11 +188,32 @@ RCode::calculate_gradient(RProp& rp){
 	unsigned int ny = mPxy.size2();
 	unsigned int ystart=mDim*nx;
 	mat_t xgrad, ygrad;
-	vec_t a=  mModel[0]=='M' ? mMx : zero_vector<double>(nx);
-	vec_t b=  mModel[1]=='M' ? mMy : zero_vector<double>(ny);
+	vec_t a(nx),b(ny),a_mult(nx),b_mult(ny);
+	switch(mModel[0]){
+		case 'M': 
+			noalias(a)      = apply_to_all<functor::log<double> >(const_cast<const vec_t&>(mMx)); 
+			noalias(a_mult) = a;
+			break;
+		case 'U': 
+			noalias(a) = zero_vector<double>(nx); 
+			noalias(a_mult) = scalar_vector<double>(nx,1.0);
+			break;
+		default : throw runtime_error(string("Unknown Embedding Model")+mModel);
+	}
+	switch(mModel[1]){
+		case 'M': 
+			noalias(b)      = apply_to_all<functor::log<double> >(const_cast<const vec_t&>(mMy)); 
+			noalias(b_mult) = b;
+			break;
+		case 'U': 
+			noalias(b) = zero_vector<double>(ny); 
+			noalias(b_mult) = scalar_vector<double>(ny,1.0);
+			break;
+		default : throw runtime_error(string("Unknown Embedding Model")+mModel);
+	}
 
 	if(mUse_Pxy){
-		loglik += calculate_gradient(mPxy,mMx,mMy,mXpos,mYpos,a,b,xgrad,ygrad);
+		loglik += calculate_gradient(mPxy,mMx,mMy,mXpos,mYpos,a,b,a_mult,b_mult,xgrad,ygrad);
 
 		if(!mFixXpos)
 		for(unsigned int d=0;d<mDim;d++){
@@ -190,7 +231,7 @@ RCode::calculate_gradient(RProp& rp){
 	if(mUse_Pxx && !mFixXpos){
 		double alpha = (double)nx/ny;
 		//double alpha = (double)ny/nx;
-		loglik += alpha*calculate_gradient(mPxx,mMxx,mMxx,mXpos,mXpos,a,a,xgrad,ygrad);
+		loglik += alpha*calculate_gradient(mPxx,mMxx,mMxx,mXpos,mXpos,a,a,a_mult,a_mult,xgrad,ygrad);
 		xgrad  *= alpha;
 		for(unsigned int d=0;d<mDim;d++){
 			vector_range<RProp::vec_t> xrange (grad, range(d*nx,(d+1)*nx));
@@ -204,8 +245,8 @@ void
 RCode::init_positions(){
 	mXpos = mat_t(mPxy.size1(),mDim);
 	mYpos = mat_t(mPxy.size2(),mDim);
-	random_init(mXpos,-2.0,2.0);
-	random_init(mYpos,-2.0,2.0);
+	random_init(mXpos,-1.0,1.0);
+	random_init(mYpos,-1.0,1.0);
 	mPosInitialized=true;
 }
 
