@@ -1,13 +1,9 @@
 % vim:ft=matlab
 1;
 cd /tmp;
-%feat_feat_mat;
-%feat_mol_mat;
-%feat_klass_mat;
-%code_data;
 load code_data;
 
-feat_feat  = double(feat_klass) * double(feat_klass');
+%feat_feat  = double(feat_klass) * double(feat_klass');
 feat_feat  = double(feat_feat) / sum(feat_feat(:));   % make probabilities
 
 %s = sum(feat_klass,2); n = s(:,ones(1,size(feat_klass,2)));
