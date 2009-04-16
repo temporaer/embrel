@@ -31,6 +31,8 @@ ActionCfg::ActionCfg(){
 		("code.dont_use_pxx",bool_switch(),"don't use query-query statistics")
 		("code.model",value<string>()->default_value("UM"),"CODE model to use")
 		("code.rprop_maxiter",value<int>()->default_value(300),"Max Num of RPROP iterations")
+
+		("code.entropy_emb,e",bool_switch(),"do a 2nd, entropy-based embedding after 1st")
 		;
 	options_description count("  Count Options");
 	count.add_options()

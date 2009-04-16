@@ -390,37 +390,38 @@ void CODE_data_gen::run(){
 		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
 		rc.setPxx(*cr.getFeatFeatMat());
 		rc.init_positions(); // randomly
-#if 0
-		run_code(rc,cr,false);
-#else
-		rc.mUse_Pxx = true;
-		rc.mUse_Pxy = true;
-		rc.mFixXpos = false;
-		rc.mFixYpos = false;
-		run_code(rc,cr,false); // use only feat pos
+		if(!gCfg().getBool("code.entropy_emb")){
+			// straight forward embedding
+			rc.mFixXpos = false;
+			rc.mFixYpos = false;
+			run_code(rc,cr,false);
+		}else{
+			// entropybased 2nd embedding after 1st
+			rc.mFixXpos = false;
+			rc.mFixYpos = false;
+			run_code(rc,cr,false); // use only feat pos
 
-#if 1
-		cout << "weighing cooccurrence by squared normalized entropy..."<<flush;
-		ExactDescriptiveStatistics estat;
-		estat.notify(cr.mFeaDesc.begin(), cr.mFeaDesc.end(), ll::bind(&feature::mEntropy,ll::_1));
-		for(unsigned int i=0;i<cr.getObsFeatMat()->size2();i++){
-			ublas::matrix_column<CoocReader::matrix_itype> col(*cr.getObsFeatMat(),i);
-			col *= pow(normalize_minmax(cr.mFeaDesc[i].mEntropy,0.0,1.0,estat),2);
+			cout << "weighing cooccurrence by squared normalized entropy..."<<flush;
+			ExactDescriptiveStatistics estat;
+			estat.notify(cr.mFeaDesc.begin(), cr.mFeaDesc.end(), ll::bind(&feature::mEntropy,ll::_1));
+			for(unsigned int i=0;i<cr.getObsFeatMat()->size2();i++){
+				ublas::matrix_column<CoocReader::matrix_itype> col(*cr.getObsFeatMat(),i);
+				col *= pow(normalize_minmax(cr.mFeaDesc[i].mEntropy,0.0,1.0,estat),2);
+			}
+			for(unsigned int i=0;i<cr.getObsFeatMat()->size1();i++){
+				ublas::matrix_row<CoocReader::matrix_itype> row(*cr.getObsFeatMat(),i);
+				row /= accumulate(row.begin(),row.end(),0.0);
+			}
+			rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
+			rc.setPxx(*cr.getFeatFeatMat());
+			cout <<"done."<<endl;
+
+			rc.mUse_Pxx = false;
+			rc.mUse_Pxy = true;
+			rc.mFixXpos = true;
+			rc.mFixYpos = false;
+			run_code(rc,cr,true); // load previously determined feat pos
 		}
-		for(unsigned int i=0;i<cr.getObsFeatMat()->size1();i++){
-			ublas::matrix_row<CoocReader::matrix_itype> row(*cr.getObsFeatMat(),i);
-			row /= accumulate(row.begin(),row.end(),0.0);
-		}
-		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
-		rc.setPxx(*cr.getFeatFeatMat());
-		cout <<"done."<<endl;
-#endif
-		rc.mUse_Pxx = false;
-		rc.mUse_Pxy = true;
-		rc.mFixXpos = true;
-		rc.mFixYpos = false;
-		run_code(rc,cr,true); // load previously determined feat pos
-#endif
 	}
 
 	cr.load_feat_pos("/tmp/erl/fea.txt");
@@ -629,16 +630,17 @@ void CODE_data_gen::run(){
 void CODE_data_gen::run_code(RCode& rc, CoocReader& cr, bool load_fea_pos){
 #define USE_RCODE 1
 #if USE_RCODE
-		if(load_fea_pos){
-			cr.load_feat_pos("/tmp/erl/fea.txt");
-			for(unsigned int i=0;i<cr.mFeaDesc.size();i++){
-				ublas::row(rc.mXpos,i) = cr.mFeaDesc[i].mPos;
-			}
-		}
 		double lastLogLik=-1E9;
 		int n_restarts = gCfg().getInt("code.nrestarts");
 		for(int i=0;i<n_restarts;i++){
-			double loglik = rc.run();
+			rc.init_positions(); // randomly
+			if(load_fea_pos){
+				cr.load_feat_pos("/tmp/erl/fea.txt");
+				for(unsigned int i=0;i<cr.mFeaDesc.size();i++){
+					ublas::row(rc.mXpos,i) = cr.mFeaDesc[i].mPos;
+				}
+			}
+			double loglik = rc.run(i);
 			if(loglik<lastLogLik) continue;
 			lastLogLik = loglik;
 			ofstream os1("/tmp/erl/fea.txt");
