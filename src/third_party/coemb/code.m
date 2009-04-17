@@ -173,6 +173,8 @@ cg_params.NX = NX;
 
 x0=[];
 
+global i_repeat;
+
 for curr_dim = dim_list
     for(i_repeat=1:n_restarts)
         x0=[];
@@ -310,6 +312,7 @@ if b_reverse
        psis{curr_dim} = tmp_phi{curr_dim};
    end 
 end
+
 
 return
 

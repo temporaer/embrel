@@ -53,6 +53,8 @@ function  [X, info, perf] = conj_grad(fun,par, x0, opts)
 %  Method
 %  See Chapter 4 in  P.E. Frandsen, K. Jonasson, H.B. Nielsen, 
 %  O. Tingleff: "Unconstrained Optimization", IMM, DTU.  1999.
+   allliks=[];
+   global i_repeat
 
    verbose = 1;
 %  Hans Bruun Nielsen,  IMM, DTU.  99.08.05-09 / 08.23 / 12.07
@@ -147,12 +149,16 @@ function  [X, info, perf] = conj_grad(fun,par, x0, opts)
      if verbose
 %    fprintf('%g>%g  %g>%g. norm(x)=%g norm(h)=%g nh=%g alfa=%g\n',ng,opts(4),alfa*nh,opts(5)*(opts(5) + norm(x)),norm(x),norm(h),nh,alfa);
     fprintf('It=%d Val=%g Alpha=%g NEval=%d Time=%g\n',nit,full(f),alfa,neval,toc);
+    allliks = [allliks; full(f)];
      end
      if isnan(alfa)
        save conjgrad_drop
        keyboard
      end
    end  % iteration
+
+   fn = sprintf('/tmp/matlik%02d.txt', i_repeat);
+   save(fn,'-ascii','allliks');
 
 %   fprintf('It=%d Val=%g NEval=%d\n',nit,full(f),neval)
    %  Set return values
