@@ -17,22 +17,28 @@ sub make_gp{
 	my @fn   = @_;
 	open FH, ">$gpfn" or die $!;
 	foreach my $f (@fn){
-		my $s = reformat_liks($f);
+		my $s = reformat_liks($f,300);
 		print FH $s;
 		print FH "\n";
 	}
 }
 
 sub reformat_liks{
-	my $fn = shift;
+	my $fn     = shift;
+	my $minlen = shift;
 	open IN, "<$fn" or die $!;
 	my $s = "";
 	my $i = 0;
+	my $val;
 	while(<IN>){
-		chomp;
-		s/^\s*//g;
-		#$_ = "-$_" unless(s/^-//); # invert sign
-		$s .= "$i $_\n";
+		$val = $_;
+		chomp($val);
+		$val =~ s/^\s*//g;
+		$s .= "$i $val\n";
+		$i++;
+	}
+	while($i<$minlen){
+		$s .= "$i $val\n";
 		$i++;
 	}
 	$s
