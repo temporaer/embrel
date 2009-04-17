@@ -31,7 +31,7 @@ void RCode::configure(){
 
 double
 RCode::run(int globaliter){
-	ofstream os((boost::format("/tmp/rcod%02d.txt")%globaliter).str().c_str());
+	ofstream os((boost::format(gCfg().getOutputFile("rcod%02d.txt"))%globaliter).str().c_str());
 	if(!mPosInitialized)
 		init_positions();
 	prepare_marginals();
@@ -104,10 +104,6 @@ RCode::calculate_gradient(const mat_t& pxy,
 	const vec_t& a_mult, const vec_t& b_mult, 
 	mat_t& xgrad, mat_t& ygrad)
 {
-	ofstream os("/tmp/rcod_a.txt");
-	copy(a.begin(),a.end(),ostream_iterator<double>(os,"\n"));
-	os.close();
-
 	unsigned int nx = pxy.size1();
 	unsigned int ny = pxy.size2();
 	precision max_elem(-1E9);

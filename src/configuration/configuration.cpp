@@ -207,7 +207,12 @@ boost::any Configuration::getAny(const std::string& s)
 }
 string Configuration::getOutputFile(const std::string& s)
 {
-	string file =  get<std::string>(s);
+	string file;
+	try{
+		file =  get<std::string>(s);
+	}catch(...){
+		file = s;
+	}
 	string path =  get<std::string>("output-dir");
 	return (fs::path(path) / fs::path(file)).string();
 }

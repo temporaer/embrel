@@ -424,8 +424,8 @@ void CODE_data_gen::run(){
 		}
 	}
 
-	cr.load_feat_pos("/tmp/erl/fea.txt");
-	cr.load_obs_pos("/tmp/erl/cla.txt");
+	cr.load_feat_pos(gCfg().getOutputFile("fea.txt").c_str());
+	cr.load_obs_pos(gCfg().getOutputFile("cla.txt").c_str());
 
 	CoocReader::featpos fp;
 	foreach(feature& f, cr.mFeaDesc){
@@ -553,7 +553,7 @@ void CODE_data_gen::run(){
 		f.mSize = normalize_minmax(f.mSize,size_fact*4.0f,size_fact*10.0f,sstat);
 	}
 
-	fs::path pointsxml("/tmp/erl/points.xml");
+	fs::path pointsxml(gCfg().getOutputFile("points.xml").c_str());
 	fs::ofstream xml(pointsxml);
 	xml << "<?xml version='1.0' encoding='utf-8' ?>"<<endl
 		<< "<data>"<<endl;
@@ -622,9 +622,13 @@ void CODE_data_gen::run(){
 	xml.close();
 
 
-	system("cd /home/schulzha/checkout/embrel ; perl pointsxml2svg.pl /tmp/erl/points.xml");
-	system("convert /tmp/erl/points-static.svg /tmp/erl/points.png");
-	//system("/usr/bin/play -q /usr/lib/xcdroast/sound/test.wav 2>&1>/dev/null");
+	int res=0;
+	res |= system((boost::format("cd ../.. ; perl pointsxml2svg.pl %s")%gCfg().getOutputFile("points.xml")).str().c_str());
+	res |= system((boost::format("convert %s %s")%gCfg().getOutputFile("points-static.svg")%gCfg().getOutputFile("points.png")).str().c_str());
+	//res |= system("/usr/bin/play -q /usr/lib/xcdroast/sound/test.wav 2>&1>/dev/null");
+	if(res!=0){
+		cout<<"error during system(...)"<<endl;
+	}
 }
 
 void CODE_data_gen::run_code(RCode& rc, CoocReader& cr, bool load_fea_pos){
@@ -635,7 +639,7 @@ void CODE_data_gen::run_code(RCode& rc, CoocReader& cr, bool load_fea_pos){
 		for(int i=0;i<n_restarts;i++){
 			rc.init_positions(); // randomly
 			if(load_fea_pos){
-				cr.load_feat_pos("/tmp/erl/fea.txt");
+				cr.load_feat_pos(gCfg().getOutputFile("fea.txt").c_str());
 				for(unsigned int i=0;i<cr.mFeaDesc.size();i++){
 					ublas::row(rc.mXpos,i) = cr.mFeaDesc[i].mPos;
 				}
@@ -643,13 +647,13 @@ void CODE_data_gen::run_code(RCode& rc, CoocReader& cr, bool load_fea_pos){
 			double loglik = rc.run(i);
 			if(loglik<lastLogLik) continue;
 			lastLogLik = loglik;
-			ofstream os1("/tmp/erl/fea.txt");
+			ofstream os1(gCfg().getOutputFile("fea.txt").c_str());
 			for(unsigned int i=0;i<rc.mXpos.size1();i++) {
 				ublas::matrix_row<RCode::mat_t> r(rc.mXpos,i);
 				copy(r.begin(),r.end(),ostream_iterator<double>(os1," "));
 				os1<<endl;
 			}
-			ofstream os2("/tmp/erl/cla.txt");
+			ofstream os2(gCfg().getOutputFile("cla.txt").c_str());
 			for(unsigned int i=0;i<rc.mYpos.size1();i++) {
 				ublas::matrix_row<RCode::mat_t> r(rc.mYpos,i);
 				copy(r.begin(),r.end(),ostream_iterator<double>(os2," "));

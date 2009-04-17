@@ -210,7 +210,7 @@ void printCountsToCSV(const char* fn,const SDFReader& sdf_read, const vector<cnt
 		copy(feat_matches.begin(), feat_matches.end(), ostream_iterator<int>(os,","));
 		os << gobj.mClassID << endl;
 	}
-	ofstream featn("/tmp/erl/chains-names.csv");
+	ofstream featn(gCfg().getOutputFile("chains-names.csv").c_str());
 	BOOST_FOREACH(const cnt_chain& f, css){
 		featn << f.str() << ":" <<f.mID << ":"<<f.mParent <<endl;
 	}
@@ -446,8 +446,8 @@ determineChildren(T& cont, cnt_base& b){
 template<class T>
 void
 makeXML(T& cont){
-	ifstream is("/tmp/erl/phix.txt");
-	ofstream os("/tmp/erl/points.xml");
+	ifstream is(gCfg().getOutputFile("phix.txt").c_str());
+	ofstream os(gCfg().getOutputFile("points.xml").c_str());
 	ExactDescriptiveStatistics xstats("xstats"), ystats("ystats"), cstats("cstats"), sstats("sstats");
 	double x, y, c;
 	BOOST_FOREACH(cnt_base& b, cont){
@@ -483,7 +483,7 @@ makeXML(T& cont){
 		os << "</node>"<<endl;
 	}
 
-	ifstream classis("/tmp/erl/psiy.txt");
+	ifstream classis(gCfg().getOutputFile("psiy.txt").c_str());
 	int i=0;
 	while(!classis.eof()){
 		classis >> x >> y;

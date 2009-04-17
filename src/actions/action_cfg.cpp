@@ -15,7 +15,7 @@ ActionCfg::ActionCfg(){
 
 	options_description code ("  Code Options");
 	code.add_options()
-		("code.input_file", value<string>()->default_value("/tmp/erl/chains"), "input file basename (w/o ext)")
+		("code.input_file", value<string>(), "input file basename (w/o ext)")
 		("code.contrast_eq_neigh", value<int>()->default_value(30), "min num neigh for contrast equalization")
 		("code.hebb_iter", value<int>()->default_value(100), "hebb iterations")
 		("code.dont_run_code,m", bool_switch(), "dont run matlab with CODE")

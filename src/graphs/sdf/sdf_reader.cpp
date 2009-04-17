@@ -53,8 +53,8 @@ void SDFReader::configure()
 	mFixedSize   = gCfg().getInt("SDFReader.fixed_size");
 	setInputFiles(files);
 	if(mGraphs.size()==0){
-		if(fs::exists("/tmp/erl/graphs.ser") && gCfg().getBool("SDFReader.use_cache")){
-			ifstream ifs("/tmp/erl/graphs.ser");
+		if(fs::exists(gCfg().getOutputFile("graphs.ser")) && gCfg().getBool("SDFReader.use_cache")){
+			ifstream ifs(gCfg().getOutputFile("graphs.ser").c_str());
 			archive::binary_iarchive ar(ifs);
 			ar >> (*this);
 		}else
@@ -103,7 +103,7 @@ void SDFReader::readInputFiles()
 		while(readMolekule(is, fd.classid, graphCount++) && fcnt++<400);
 		//L(". %d molecules read.\n", graphCount);
 	}
-	ofstream os("/tmp/erl/graphs.ser");
+	ofstream os(gCfg().getOutputFile("graphs.ser").c_str());
 	archive::binary_oarchive ar(os);
 	random_shuffle(mGraphs.begin(), mGraphs.end());
 	ar << const_cast<const SDFReader&>(*this);
