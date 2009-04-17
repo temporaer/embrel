@@ -22,6 +22,7 @@ class RProp{
 		precision   mNuMinus;   // 0 < NuMinus < 1 < NuPlus
 		precision   mDelta0;    ///< initial delta
 		precision   mDeltaMax;  ///< maximum delta
+		precision   mDeltaMin;  ///< minimum delta
 
 		// data
 		vec_t   mGrad;        ///< current gradient
@@ -58,7 +59,7 @@ class RProp{
 		inline const precision&   getDeltaW(unsigned int i)const{ return mDeltaW(i); }
 
 		/// perform a 2-step update: 1) delta-w is updated 2) update-values are updated
-		void update(ARPROP_evalres);
+		void update_irprop_plus(ARPROP_evalres);
 		void update();
 };
 

@@ -56,7 +56,7 @@ RCode::run(int globaliter){
 	
 
 		// calculate update
-		rp.update((lastloglik<loglik)?RProp::ARPROP_DIR_OK:RProp::ARPROP_DIR_WRONG);
+		rp.update_irprop_plus((lastloglik<loglik)?RProp::ARPROP_DIR_OK:RProp::ARPROP_DIR_WRONG);
 		//rp.update();
 		lastloglik = loglik;
 

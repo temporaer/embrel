@@ -15,6 +15,7 @@ RProp::RProp(unsigned int dim_grad)
 , mNuMinus(0.5f)
 , mDelta0(0.1f)
 , mDeltaMax(50)
+, mDeltaMin(0)
 , mGrad(dim_grad,0)
 , mOldGrad(dim_grad,0)
 , mUpdateValue(dim_grad,mDelta0)
@@ -25,16 +26,38 @@ RProp::RProp(unsigned int dim_grad)
 {
 }
 
-void RProp::update(ARPROP_evalres res){
-	if(ARPROP_DIR_OK){
-		mDeltaW *= 0.5;
-		return;
+void RProp::update_irprop_plus(ARPROP_evalres globalres){
+	noalias(mGradSgn)       = vec_sgn(mGrad);
+	noalias(mProdSgn)       = vec_sgn(element_prod(mGradSgn,mOldGradSgn)); // add - for minimization
+
+	sign_vec_t::iterator ps = mProdSgn.begin(), pe = mProdSgn.end();
+	vec_t::iterator uw      = mUpdateValue.begin();
+	vec_t::iterator dw      = mDeltaW.begin();
+	sign_vec_t::iterator cg = mGradSgn.begin();
+	while(ps!=pe){
+		sign_t&    prod_sgn = *ps++;
+		precision& delta    = *uw++;
+		precision& deltaw   = *dw++;
+		sign_t&    grad_sgn = *cg++;
+		if(prod_sgn > 0){ 
+			delta  = min(delta*mNuPlus,mDeltaMax);  
+			deltaw = grad_sgn * delta;
+			continue;
+		};
+		if(prod_sgn < 0){ 
+			delta  = max(delta*mNuMinus,mDeltaMin);  
+			if(globalres == ARPROP_DIR_WRONG)
+				deltaw = -deltaw;
+			else
+				deltaw = 0;
+			grad_sgn = 0;
+			continue;
+		};
+		deltaw = grad_sgn * delta;
 	}
-	update();
+	swap(mGradSgn,mOldGradSgn);
 }
 void RProp::update(){
-	//cout << sum(mGrad)<<endl;
-	
 	// step 1: update delta w
 	noalias(mGradSgn)       = vec_sgn(mGrad);
 	noalias(mDeltaW)        = element_prod(mGradSgn,mUpdateValue); // for minimzation: add a "-"
@@ -46,8 +69,8 @@ void RProp::update(){
 	while(ps!=pe){
 		sign_t&    s = *ps++;
 		precision& d = *uw++;
-		if(s < 0){ d *= mNuMinus; /*cout<<"."<<flush;*/ continue;};
-		if(s > 0){ d *= mNuPlus;  /*cout<<":"<<flush;*/ d = min(d, mDeltaMax);};
+		if(s < 0){ d *= mNuMinus; continue;};
+		if(s > 0){ d *= mNuPlus;  d = min(d, mDeltaMax);};
 	}
 	swap(mGrad,mOldGrad);
 	swap(mGradSgn,mOldGradSgn);
