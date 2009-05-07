@@ -535,10 +535,17 @@ void CODE_data_gen::run(){
 	float img_height = gCfg().getFloat("code.img_height");
 	float size_fact  = gCfg().getFloat("code.size_fact");
 	float pos_rand   = gCfg().getFloat("code.pos_rand");
+	ExactDescriptiveStatistics posnormstat = xstat.getRange() > ystat.getRange() ? xstat : ystat; 
+	posnormstat += xstat.getMin();
+	posnormstat += xstat.getMax();
+	posnormstat += ystat.getMin();
+	posnormstat += ystat.getMax();
 	foreach(feature& f, cr.mFeaDesc){
 		//if(f.mIgnore) continue;
 		f.mPos[0] = normalize_minmax(f.mPos[0], 0.0f, img_width,  xstat) + (2*(drand48()-0.5))*pos_rand;
 		f.mPos[1] = normalize_minmax(f.mPos[1], 0.0f, img_height, ystat) + (2*(drand48()-0.5))*pos_rand;
+		//f.mPos[0] = normalize_sd(f.mPos[0], 0.0f, img_width,0.3f,  xstat) + (2*(drand48()-0.5))*pos_rand;
+		//f.mPos[1] = normalize_sd(f.mPos[1], 0.0f, img_height,0.3f, ystat) + (2*(drand48()-0.5))*pos_rand;
 		if(cr.mKlasses.size()<=4)
 			f.mColorFact = normalize_minmax(f.mColorFact,0.0f,255.0f,cstat);
 		else // regression
