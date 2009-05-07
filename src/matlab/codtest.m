@@ -3,6 +3,8 @@
 cd /tmp;
 load code_data;
 
+path(path,'/home/schulzha/checkout/embrel/src/matlab');
+
 %feat_feat  = double(feat_klass) * double(feat_klass');
 feat_feat  = double(feat_feat) / sum(feat_feat(:));   % make probabilities
 
@@ -35,9 +37,20 @@ end
 %phi_x = PHIX{2};
 %psi_y = PSIY{2};
 %[PHIX, PSIY, L] = code({feat_klass, feat_mol}, 2, o);
-[PHI, PSI, L] = code({feat_klass}, 2, o);
-psi = PHI{2};
-phi = PSI{2};
+
+% CODE
+%[PHI, PSI, L] = code({feat_klass}, 2, o);
+%psi = PHI{2};
+%phi = PSI{2};
+% PCA
+%[PC, SCORE, LATENT]=princomp(feat_feat);
+%psi = PC(:,1:2);
+
+% Eig
+[PC,D] = eig(get_laplacian(feat_feat/max(feat_feat(:))));
+psi = PC(:,end-2:end-1);
+
+phi = (rand(size(feat_klass,2),2)*0.001) .^ 2;
 
 %clf;
 %hold on;
@@ -48,3 +61,5 @@ pxycolor = max(feat_klass',[],1);
 %hold off;
 cd /home/schulzha/checkout/embrel/src/matlab;
 write2file(phi, psi, pxycolor');
+
+
