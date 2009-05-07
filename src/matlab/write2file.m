@@ -5,7 +5,7 @@ function write2file(PHIX, PSIY, COL)
   CLA = PHIX;
   FEA = [PSIY COL];
   %save /tmp/erl/mol.txt MOL -double -ascii
-  save /tmp/erl/cla.txt CLA -double -ascii
-  save /tmp/erl/fea.txt FEA -double -ascii
+  save /home/schulzha/checkout/embrel/build/release/cla.txt CLA -double -ascii
+  save /home/schulzha/checkout/embrel/build/release/fea.txt FEA -double -ascii
 end
 
