@@ -94,7 +94,7 @@ void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfiel
 			mProgress.finish(false);
 	}
 	else{
-		int i= boost::lexical_cast<int>(s);
+		int i= (int)(0.5 + boost::lexical_cast<double>(s));
 		if(i>0){
 			(*mObsFeatMat)(lidx,idx-1) = i;
 		//	mObsFeatMat->push_back(lidx,idx-1,i);
