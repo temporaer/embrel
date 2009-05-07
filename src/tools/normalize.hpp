@@ -59,6 +59,17 @@ Denormalizer<I,T> normalize_minmax(I begin, I end, T vmin, T vmax, ExactDescript
 template<class T, class V>
 inline
 T
+normalize_sd(const T& t, const V& vmin, const V& vmax, const V& fact, const ExactDescriptiveStatistics& stats){
+		T tSD = stats.getSD() * fact;
+    T vi = t - stats.getMean() + tSD;
+    vi  /= 2 * tSD;
+    vi  *= vmax-vmin;
+    vi  += vmin;
+	return vi;
+}
+template<class T, class V>
+inline
+T
 normalize_minmax(const T& t, const V& vmin, const V& vmax, const ExactDescriptiveStatistics& stats){
     T vi = t - stats.getMin();
     vi  /= stats.getRange();
