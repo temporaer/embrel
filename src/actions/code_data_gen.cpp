@@ -583,7 +583,7 @@ void CODE_data_gen::run(){
 		color = (boost::format(color)%(int)f.mColorFact).str();
 		xml << boost::format(
 				"<node id='%s' ignore='%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
-			%          f.mId      % f.mIgnore % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
+			%  f.mId  % f.mIgnore % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
 			<< endl;
 		writeFeaChildren(xml,cr,f.mRunningNumber);
 		xml << "</node>"<<endl;
