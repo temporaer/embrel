@@ -600,6 +600,8 @@ void CODE_data_gen::run(){
 	foreach(observation& o, cr.mObsDesc){
 		o.mPos[0] = normalize_minmax(o.mPos[0], 0.0f, img_width,  xstat);
 		o.mPos[1] = normalize_minmax(o.mPos[1], 0.0f, img_height, ystat);
+		//o.mPos[0] = normalize_sd(o.mPos[0], 0.0f, img_width, 0.3f,  xstat);
+		//o.mPos[1] = normalize_sd(o.mPos[1], 0.0f, img_height, 0.3f, ystat);
 		string color;
 		if(regression){
 			int c;
