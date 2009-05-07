@@ -558,6 +558,7 @@ void CODE_data_gen::run(){
 	xml << "<?xml version='1.0' encoding='utf-8' ?>"<<endl
 		<< "<data>"<<endl;
 	string color;
+	cout << "Writing Features: "<<cr.mFeaDesc.size() <<endl;
 	foreach(feature& f, cr.mFeaDesc){
 		//if(f.mIgnore) continue;
 		string color;
