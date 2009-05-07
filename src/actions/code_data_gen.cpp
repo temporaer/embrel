@@ -380,20 +380,29 @@ void CODE_data_gen::run(){
 		ar << cr;
 	}
 
-	//foreach(feature& f, cr.mFeaDesc){
-		//f.mSize = f.mFreq;
-	//}
+	// this block only for NIPS
+#if 0
+	ifstream fnis("/home/schulzha/data/nips_counts-names.csv");
+	foreach(feature& f, cr.mFeaDesc){
+		string str;
+		getline(fnis, str);
+		boost::trim(str);
+		f.mId   = str;
+		f.mSize = f.mFreq;
+		f.mEntropy = 1.0;
+		f.mColorFact = f.mFreq;
+		f.mSelectCrit = f.mFreq;
+	}
+#endif
 	
 
-
-
 	// call matlab.
+	RCode rc(2);
+	rc.configure();
+	rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
+	rc.setPxx(*cr.getFeatFeatMat());
+	rc.init_positions(); // randomly
 	if(!gCfg().getBool("code.dont_run_code")){
-		RCode rc(2);
-		rc.configure();
-		rc.setPxy(ublas::trans(*cr.getObsFeatMat()));
-		rc.setPxx(*cr.getFeatFeatMat());
-		rc.init_positions(); // randomly
 		if(!gCfg().getBool("code.entropy_emb")){
 			// straight forward embedding
 			rc.mFixXpos = false;
