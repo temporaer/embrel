@@ -43,6 +43,8 @@ my $txt_grp=$svg->group(
 my $infile = shift(@ARGV) or die "no file given";
 my $xmlin = XMLin($infile);
 my %coor;
+my $circcount = 0;
+my $triacount = 0;
 while( my ($id,$node) = each %{$xmlin->{node}}){
 	my $objtype = $node->{objtype} or 0;
 	my $xpos    = $node->{x} or die "node has no xpos";
@@ -59,8 +61,10 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 	}
 
 	if($objtype == 0){
+		$circcount ++;
 		$grp->circle(cx=>$xpos, cy=>$ypos, r=>$size, id=>$id, style => {fill=>$color, opacity => 0.8});
 	}else{
+		$triacount ++;
 		#$size*=2;
 		my @xv = (-$size  , 0      ,$size);
 		my @yv = (-$size/2, $size/2,-$size/2);
@@ -91,6 +95,7 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 		}
 	}
 }
+print "Read $circcount circles and $triacount triangles\n";
 my $lineid=0;
 while( my ($id,$node) = each %{$xmlin->{node}}){
 	my $from = $node->{from_id};
