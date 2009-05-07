@@ -361,6 +361,10 @@ void CODE_data_gen::run(){
 			ar >> cr;
 			read_cr = true;
 		}
+		cout <<endl<< "Read data from cache; ObsFeatMat:" <<endl
+		     <<cr.getObsFeatMat()->size1() << "x"<<cr.getObsFeatMat()->size2()<<endl
+				 <<"FeatureNum: " << cr.mFeaDesc.size()<<endl
+				 <<"ObsNum:     " << cr.mObsDesc.size()<<endl;
 	}
 	if(!read_cr){
 		ifs.open(infile);
