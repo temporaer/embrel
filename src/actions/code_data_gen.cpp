@@ -461,26 +461,6 @@ void CODE_data_gen::run(){
 
 	int maxiter = gCfg().getInt("code.hebb_iter");
 
-	ofstream dist_vs_norm("/tmp/dist_vs_norm.dat");
-	ProgressBar pb2a(cr.mFeaDesc.size(),"dist_vs_norm");
-	foreach(feature& f1, cr.mFeaDesc){
-		foreach(feature& f2, cr.mFeaDesc){
-			dist_vs_norm << pow(ublas::norm_2(f1.mPos-f2.mPos),2.0);
-			dist_vs_norm << " ";
-			ublas::matrix_column<CoocReader::matrix_itype> c1(*cr.getObsFeatMat(),f1.mRunningNumber);
-			ublas::matrix_column<CoocReader::matrix_itype> c2(*cr.getObsFeatMat(),f2.mRunningNumber);
-			double c=0;
-			for(unsigned int i=0;i<c1.size();i++) {
-				if(c1[i]>0 && c2[i]>0)
-					c++;
-			}
-			dist_vs_norm << c;
-			dist_vs_norm << endl;
-		}
-		pb2a.inc();
-	}
-	pb2a.finish();
-	dist_vs_norm.close();
 	ProgressBar pb3(maxiter,"hebb");
 	ExactDescriptiveStatistics sc("selectcrit");
 	foreach(feature& f, cr.mFeaDesc){ sc += f.mSelectCrit2; }
