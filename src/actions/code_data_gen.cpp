@@ -705,12 +705,30 @@ void CODE_data_gen::run_code(RCode& rc, CoocReader& cr, bool load_fea_pos){
 		chdir("../../src/matlab");
 		const char* matlab_out = "/tmp/matlab.out";
 		int res = system(
-				(boost::format("MALLOC_CHECK_=1 matlab -glnxa64 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str());
+				//(boost::format("MALLOC_CHECK_=1 matlab -glnxa64 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str()
+				(boost::format("matlab -glnx86 -nosplash -nodisplay -nojvm -r eval_codtest -logfile %s") % matlab_out).str().c_str()
+				);
 		if(res == -1)
 			throw runtime_error(std::string("Matlab execution failed!"));
 		if(WIFSIGNALED(res) && (WTERMSIG(res) == SIGINT || WTERMSIG(res) == SIGQUIT))
 			throw runtime_error(std::string("Got interrupted."));
 #endif
+}
+
+double CODE_data_gen::getLogLik(RCode& rc, CoocReader& cr){
+	rc.init_positions(); // make sure we set mPosInitialized
+	for(unsigned int i=0;i<cr.mFeaDesc.size();i++){
+		ublas::row(rc.mXpos,i) = cr.mFeaDesc[i].mPos;
+	}
+	for(unsigned int i=0;i<cr.mObsDesc.size();i++){
+		ublas::row(rc.mYpos,i) = cr.mObsDesc[i].mPos;
+	}
+	double loglik = 0;
+	int  maxRPropIters = 1;
+	swap(rc.mRPropMaxIter, maxRPropIters);
+	loglik = rc.run(0);
+	swap(rc.mRPropMaxIter, maxRPropIters);
+	return loglik;
 }
 
 void CODE_data_gen::writeObsChildren(ostream& os, CoocReader&cr, int obsnr)

@@ -146,6 +146,7 @@ class CODE_data_gen : public Action{
 		virtual void operator()(){ this->run(); }
 		void run();
 		void run_code(RCode& rc, CoocReader& cr, bool load_fea_pos);
+		double getLogLik(RCode& rc, CoocReader& cr);
 		void writeObsChildren(std::ostream& os, CoocReader&cr, int obsnr);
 		void writeFeaChildren(std::ostream& os, CoocReader&cr, int feanr);
 };
