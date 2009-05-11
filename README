@@ -1,0 +1,85 @@
+=============================================
+|        Embedded Relational Learning       |
+=============================================
+
+This program produces SVG graphics describing the relationships between queries
+and interpretations in a relational learning setting.
+
+
+
+Prerequisites
+---------------------------------------------
+
+for the c++ program
+- a current c++ compiler (>=4.1)
+- boost >= 1.35
+
+for the xml->svg conversion script
+- perl >= 5.1
+- The Perl modules SVG, Convert::Color, File::Util.
+
+
+Building
+---------------------------------------------
+
+$ tar xzvf erl.tar.gz
+$ cd erl
+$ mkdir build
+$ cd build
+$ cmake ../src
+$ make -j2
+
+
+Installing
+---------------------------------------------
+
+not done yet, just run from build directory.
+
+
+
+Running
+---------------------------------------------
+
+try: 
+$ ./erl --help
+
+$ ./erl {action} [options]
+
+there are two main actions:
+
+- count
+  this is a Molfea implementation for SDF files
+	count does currently not compile on 64bit systems due to known bugs in boost.
+
+- code
+	this is a specific RPROP-based CODE implementation for visualization
+	purposes.
+
+
+
+Examples  -- code
+---------------------------------------------
+you need two files: the matrix file and the names file.
+
+matrix file
+- contains the description of an interpretation in each line
+- a line consists of
+  - a name for the interpretation (currently ignored)
+	- for every query, a number of co-occurrences (usually 1/0)
+	- a class label (should be an int)
+
+names file
+- contains a list of names for the queries, one per line.
+
+use this name scheme for the files:
+Matrix file:   BASENAME.csv
+Names  file:   BASENAME-names.csv
+
+you can then run erl using the following command
+
+$ ./erl code --code.input_file BASENAME   --output-dir=`pwd`
+
+currently, the output-dir parameter is _mandatory_.
+
+
+good luck!
