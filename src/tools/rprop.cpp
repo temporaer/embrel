@@ -16,14 +16,20 @@ RProp::RProp(unsigned int dim_grad)
 , mDelta0(0.1f)
 , mDeltaMax(50)
 , mDeltaMin(0)
-, mGrad(dim_grad,0)
-, mOldGrad(dim_grad,0)
+, mGrad(dim_grad)
+, mOldGrad(dim_grad)
 , mUpdateValue(dim_grad,mDelta0)
-, mDeltaW(dim_grad,0)
-, mGradSgn(dim_grad,0)
-, mOldGradSgn(dim_grad,0)
-, mProdSgn(dim_grad,0)
+, mDeltaW(dim_grad)
+, mGradSgn(dim_grad)
+, mOldGradSgn(dim_grad)
+, mProdSgn(dim_grad)
 {
+  mProdSgn.clear();
+	mOldGradSgn.clear();
+	mGradSgn.clear();
+	mDeltaW.clear();
+	mOldGrad.clear();
+	mGrad.clear();
 }
 
 void RProp::update_irprop_plus(ARPROP_evalres globalres){
