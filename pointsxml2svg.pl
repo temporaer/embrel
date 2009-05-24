@@ -52,6 +52,7 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 	my $size    = $node->{size} or next;
 	my $color   = $node->{color} or die "node has no color";
 	my $ign     = $node->{ignore};
+	my $aleph   = $node->{alephfeat};
 	$color =~ s/0x//;
 	$color = Convert::Color->new("rgb8:$color");
 	$color = 'rgb(' . join(',', $color->red, $color->green, $color->blue) . ")";
@@ -65,7 +66,7 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 		$grp->circle(cx=>$xpos, cy=>$ypos, r=>$size, id=>$id, style => {fill=>$color, opacity => 0.8});
 	}else{
 		$triacount ++;
-		#$size*=2;
+		$size*=0.7;
 		my @xv = (-$size  , 0      ,$size);
 		my @yv = (-$size/2, $size/2,-$size/2);
 		@xv = map{$xpos + $_}@xv;
@@ -81,12 +82,14 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 			'xlink:title' => $id,
 		);
 
-		my ($tid) = $id =~ m/^(.*)\s*p:/;
-		#my ($tid) = $id =~ m/^(.*?)\s/;
+		#my ($tid) = $id =~ m/^(.*)\s*p:/;
+		my ($tid) = $id =~ m/^(.*?)\s/;
 		$tid ||= $id;
+		#print "$tid \n";
 			$a->polygon(%$points, id=>$id, style => {fill =>$color});
-		if(!$ign){
-			#$size*=2;
+		#if(!$ign || $aleph){
+		if(!$ign ){
+			$size*=1.8;
 			my $width = int(1.0*($size/2)*length($tid));
 			my $x     = int($xpos - $width/3);
 			my $y     = int($ypos-$size/2);
@@ -110,14 +113,15 @@ while( my ($id,$node) = each %{$xmlin->{node}}){
 	$line_grp->line(id=>"l" . $lineid++, x1 => $sxpos, y1=> $sypos, x2=>$txpos, y2=>$typos, style =>{'stroke' => '#DDDDDD', 'stroke-width' => 1});
 }
 while( my ($id,$node) = each %{$xmlin->{node}}){
-	my $found=0;
-	next unless ($found or   ($id =~ /attyp\(., ., 21\)/ && $id=~ /ring_size_5s/));
+	next unless (defined $node->{alephfeat});
+	next if     ($node->{alephfeat} eq '0');
 	my $objtype = $node->{objtype} or 0;
 	my $xpos    = $node->{x} or die "node has no xpos";
 	my $ypos    = $node->{y} or die "node has no ypos";
 	my $size    = $node->{size} or die "node has no size";
 	my $color   = 'rgb(255,0,0)';
-	$emph_grp->circle(cx=>$xpos, cy=>$ypos, r=>3*$size, id=>"emph-$id", style => {fill=>$color, opacity => 0.3});
+	print "Emph at : $xpos $ypos size $size\n";
+	$emph_grp->circle(cx=>$xpos, cy=>$ypos, r=>int(1.5*$size), id=>"emph-$id", style => {fill=>$color, opacity => 0.3});
 }
 
 my($fu) = File::Util->new();
