@@ -106,10 +106,10 @@ endif(DOXYGEN_EXECUTABLE)
 MESSAGE(STATUS "Boost Libs: ${Boost_LIBRARIES} ${Boost_LIBRARY_DIRS}" )
 MESSAGE(STATUS "MATIO Libs: ${MATIO_LIBRARIES} ${MATIO_LIBRARY_DIRS}" )
 add_executable( erl main.cpp )
-FIND_PROGRAM( CTAGS_BINARY ctags )
+FIND_PROGRAM( CTAGS_BINARY ctags-exuberant )
 IF( CTAGS_BINARY )
 	add_custom_command (TARGET erl
-		POST_BUILD COMMAND ctags -R --c++-kinds=+p --fields=+iaS --extra=+q --exclude=third_party
+		POST_BUILD COMMAND ctags-exuberant -R --c++-kinds=+p --fields=+iaS --extra=+q --exclude=third_party
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMENT "Creating tags" VERBATIM)
 ENDIF( CTAGS_BINARY )
 FIND_PROGRAM( MKID_BINARY mkid )
