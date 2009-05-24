@@ -13,8 +13,14 @@ Prerequisites
 for the c++ program
 - a current c++ compiler (>=4.1)
 - boost >= 1.35
+- for boost.ublas to work, you need to install the LAPACK backend.
+- boost-numeric-bindings
+	This is a header-only library you can get from:
+	http://mathema.tician.de/software/boost-bindings
+	just drop it in /usr/local/include/boost-numeric-bindings
+- matio for matlab output
 
-for the xml->svg conversion script
+for the xml to svg conversion script
 - perl >= 5.1
 - The Perl modules SVG, Convert::Color, File::Util.
 
@@ -54,6 +60,46 @@ there are two main actions:
 - code
 	this is a specific RPROP-based CODE implementation for visualization
 	purposes.
+
+
+Configuration File
+---------------------------------------------
+
+You can put all options in the configuration file as well.
+The configuration file defaults to config.dat and can be changed using the -c
+parameter. 
+
+Configuration files have a INI-syntax.
+The options translate as follows:
+
+the option:
+	--count.out_base="something"
+becomes
+	[count]
+	out_base = something
+
+
+
+
+Examples  -- count
+---------------------------------------------
+you need SDF-files (the LONG format!!!)
+
+the output of the count stage is cached, therefore you need to specify "-r" if
+you want the program to re-count and re-read everything.
+
+an example call could be:
+
+$ ./erl count --count.out_base=base --SDFReader.files molecules_a.sdf:1,molecules_i.sdf:0 --output-dir=`pwd` -r -v
+
+Explanation:
+This count action generates two csv-files in output-dir, base.csv and
+base-names.csv needed for the code action (see below).
+It uses two SDF-files, molecules_a.sdf and molecules_i.sdf, with class 1/0,
+respectively. The output files (and the cache) is written to the current
+directory, re-counting is forced. The program is verbose.
+
+
 
 
 
