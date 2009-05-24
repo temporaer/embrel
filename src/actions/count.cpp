@@ -210,7 +210,8 @@ void printCountsToCSV(const char* fn,const SDFReader& sdf_read, const vector<cnt
 		copy(feat_matches.begin(), feat_matches.end(), ostream_iterator<int>(os,","));
 		os << gobj.mClassID << endl;
 	}
-	ofstream featn(gCfg().getOutputFile("chains-names.csv").c_str());
+	string base_names = gCfg().getString("count.out_base") + "-names.csv";
+	ofstream featn(gCfg().getOutputFile(base_names).c_str());
 	BOOST_FOREACH(const cnt_chain& f, css){
 		featn << f.str() << ":" <<f.mID << ":"<<f.mParent <<endl;
 	}
@@ -221,7 +222,8 @@ vector<cnt_chain>
 getFreqs(const SDFReader& sdf_read, bool verbose, bool force){
 	vector<cnt_chain> ccs;
 	fs::path freq_fn = gCfg().getString("output-dir");
-	freq_fn /= "freqs.ser";
+	string basen     = gCfg().getString("count.out_base");
+	freq_fn /= (basen+"-freqs.ser");
 	if(fs::exists(freq_fn) && !force){
 		ifstream ifs(freq_fn.string().c_str());
 		boost::archive::binary_iarchive ar(ifs);
@@ -524,8 +526,9 @@ if(1){
 }
 	bool force_reread = gCfg().getBool("count.recount");
 	fs::path pxy_fn   = gCfg().getString("output-dir");
+	string basen      = gCfg().getString("count.out_base");
 	vector<cnt_chain> freqs = getFreqs(sdf_read, mVerbose, force_reread);
-	printCountsToCSV((pxy_fn/"chains.csv").string().c_str(),sdf_read,freqs);
+	printCountsToCSV((pxy_fn/(basen+".csv")).string().c_str(),sdf_read,freqs);
 
 	pxy_fn /= "pxy.m";
 	ofstream pxy_os(pxy_fn.string().c_str());
@@ -538,12 +541,12 @@ if(1){
 		i++;
 	}
 	matlab_matrix_out(pxy_os, "pxy_data", pxy);
-	if(!force_reread){
-		BOOST_FOREACH(cnt_chain& c, freqs){
-			determineChildren(freqs, c);
-		}
-		makeXML(freqs);
-	}
+//	if(!force_reread){
+//		BOOST_FOREACH(cnt_chain& c, freqs){
+//			determineChildren(freqs, c);
+//		}
+//		makeXML(freqs);
+//	}
 }
 
 void Count::configure()
