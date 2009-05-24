@@ -27,3 +27,5 @@ data/*
 .project
 .settings
 src/Makefile
+
+LinLogLayout/*
