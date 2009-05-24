@@ -32,6 +32,16 @@ ActionCfg::ActionCfg(){
 		("code.model",value<string>()->default_value("UM"),"CODE model to use")
 		("code.rprop_maxiter",value<int>()->default_value(300),"Max Num of RPROP iterations")
 
+		("code.linlog_graph_out",value<string>()->default_value("linlog.graph"),"write linlog graph to this file")
+		("code.linlog_pos_in"   ,value<string>()->default_value("linlog.pos"),  "read linlog-generated positions from this file")
+		("code.linlog_write"   ,bool_switch(), "write linlog graph")
+		("code.linlog_read"    ,bool_switch(), "read linlog positions instead of using CODE ones")
+
+		("code.aleph_queries",    value<string>()->default_value(""), "embed additional queries (from ALEPH, f.ex.)")
+
+		("code.dvc",      bool_switch(), "write distance vs. co-occurrence statistics")
+		("code.dvc_file", value<string>()->default_value("dist_vs_cooc.dat"), "file to write distance vs. co-occurrence statistics to")
+
 		("code.entropy_emb,e",bool_switch(),"do a 2nd, entropy-based embedding after 1st")
 		;
 	options_description count("  Count Options");
@@ -43,6 +53,9 @@ ActionCfg::ActionCfg(){
 	od.add(code);
 	od.add(count);
 	gCfg().addModuleOptions(od);
+	gCfg().conflicting_options("code.linlog_read", "code.linlog_write");
+	gCfg().dependent_options("code.linlog_read", "code.dont_run_code");
+	gCfg().dependent_options("code.linlog_write", "code.dont_run_code");
 }
 
 namespace {
