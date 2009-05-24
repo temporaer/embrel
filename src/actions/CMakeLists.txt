@@ -17,7 +17,7 @@ include_directories(
 add_library( actions SHARED 
     action_cfg.cpp 
 	action.hpp action.cpp
-    #count.hpp count.cpp
+    count.hpp count.cpp
 	code_data_gen.cpp
 )
 
