@@ -18,6 +18,7 @@ GraphCfg::GraphCfg(){
 		("SDFReader.files",      value<string>(),                    "sdf-files, format: file:class,file:class")
 		("SDFReader.fixed_size", value<int>() ->default_value(0),    "fixed size of molecules")
 		("SDFReader.use_cache",  value<bool>()->default_value(true), "use cached graphs if existent")
+		("SDFReader.max_num",    value<int>() ->default_value(1E6),  "maximum number of molecules per file")
 		;
 	od.add(sdfr);
 	gCfg().addModuleOptions(od);

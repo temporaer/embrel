@@ -96,11 +96,12 @@ void SDFReader::setInputFiles(const std::string& inputfileline)
 void SDFReader::readInputFiles()
 {
 	int graphCount = 0;
+	int max_num = gCfg().getInt("SDFReader.max_num");
 	BOOST_FOREACH(const FileDescriptor& fd, mInputFiles){
 		//L("Reading SDF input file `%s'...", fd.name.c_str());
 		ifstream is(fd.name.c_str());
 		int fcnt = 0;
-		while(readMolekule(is, fd.classid, graphCount++) && fcnt++<400);
+		while(readMolekule(is, fd.classid, graphCount++) && ++fcnt<max_num);
 		//L(". %d molecules read.\n", graphCount);
 	}
 	ofstream os(gCfg().getOutputFile("graphs.ser").c_str());
