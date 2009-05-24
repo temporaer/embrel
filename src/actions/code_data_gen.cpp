@@ -102,7 +102,7 @@ void CoocReader::read_field(const std::string& s, int lidx, int idx, int numfiel
 	}
 }
 
-void CoocReader::init_features()
+void CoocReader::init_features(int aleph_queries, vector<string>& aleph_names)
 {
 	map<observation::klass_type, int> klass_cnt;
 	map<observation::klass_type, double> klass_prior;
@@ -130,21 +130,28 @@ void CoocReader::init_features()
 		//"(?:attyp\(., ., 195\))"
 		//,boost::regex::mod_x);
 	bool regression = klass_cnt.size() >= 5;
+	reverse(aleph_names.begin(), aleph_names.end());
 	for(unsigned int i=0;i<mObsFeatMat->size2();i++){
 		pb1.inc();
 		feature f;
 		// id
 		string str;
-		assert(!featnamstream.eof());
-		getline(featnamstream, str);
-		boost::trim(str);
-		vector<string> tmp;
-		boost::split( tmp, str, boost::is_any_of(":"));
-		f.mId       = tmp[0];
-		f.mFromId   = tmp.size()>1 ? tmp[1] : "_";
-		f.mTargetId = tmp.size()>2 ? tmp[2] : "_";
-		f.mId = boost::regex_replace(f.mId, key_re1, "");
-		f.mId = boost::regex_replace(f.mId, key_re2, "");
+		f.mAlephFeat = ( i >= mObsFeatMat->size2() - aleph_queries);
+		if(f.mAlephFeat){
+			f.mId = aleph_names.back();
+			aleph_names.pop_back();
+		}else{
+			assert(!featnamstream.eof());
+			getline(featnamstream, str);
+			boost::trim(str);
+			vector<string> tmp;
+			boost::split( tmp, str, boost::is_any_of(":"));
+			f.mId       = tmp[0];
+			f.mFromId   = tmp.size()>1 ? tmp[1] : "_";
+			f.mTargetId = tmp.size()>2 ? tmp[2] : "_";
+			f.mId = boost::regex_replace(f.mId, key_re1, "");
+			f.mId = boost::regex_replace(f.mId, key_re2, "");
+		}
 
 		f.mComplexity = f.mId.length();
 
@@ -193,7 +200,8 @@ void CoocReader::init_features()
 		const float beta= 0.2f;
 		f.mFMeasure     = (1+beta*beta) * (precision * recall) / (beta*beta*precision + recall);
 
-		f.mId           = (boost::format("%s p:%1.2f r:%1.2f") % f.mId % precision % recall).str();
+		//f.mId           = (boost::format("%s p:%1.2f r:%1.2f") % f.mId % precision % recall).str();
+		f.mId           = (boost::format("%s") % f.mId ).str();
 
 		// color factor
 		f.mColorFact = precision;
@@ -228,8 +236,11 @@ if(gCfg().getBool("code.remove_sim")){
 			if(equal(a.begin(),a.end(),b.begin())){
 				assert(i<mFeaDesc.size());
 				assert(j<mFeaDesc.size());
-				if(mFeaDesc[i].mComplexity < mFeaDesc[j].mComplexity)
+				if(mFeaDesc[i].mComplexity <= mFeaDesc[j].mComplexity){
+					if(mFeaDesc[i].mAlephFeat)
+						mFeaDesc[j].mAlephFeat=true; // conserve alephfeat flag
 					swap(mFeaDesc[i],mFeaDesc[j]);
+				}
 				mFeaDesc[i].mRunningNumber=-1; // mark for deletion
 				retain=false;
 				break;
@@ -372,13 +383,59 @@ void CODE_data_gen::run(){
 		ifs.close();
 		int running_obs_num=0;
 		foreach(observation& o, cr.mObsDesc){ o.mRunningNumber=running_obs_num++;}
-		cr.init_features();
+
+		int aleph_feat = 0;
+		vector<string> aleph_names;
+		string alephfn = gCfg().getString("code.aleph_queries");
+		if(alephfn.length()>0){
+			cout << "Reading ALEPH queries from "<<alephfn<< "..."<<flush;
+			ifstream ais(alephfn.c_str());
+			string descr,line1, line2;
+			int count=0;
+			for(;getline(ais,str);count++);
+			ais.close();
+			count /=3;
+
+			// adjust size of  matrix
+			unsigned int s1 = cr.getObsFeatMat()->size1();
+			unsigned int s2 = cr.getObsFeatMat()->size2();
+			CoocReader::matrix_itype m(s1, s2+count);
+			m.clear();
+			ublas::matrix_range<CoocReader::matrix_itype> mr (m, ublas::range (0, s1), ublas::range (0, s2));
+			mr = *cr.getObsFeatMat();
+
+			ais.open(alephfn.c_str());
+			while(!ais.eof()){
+				getline(ais, descr);
+				boost::trim(descr);
+				if(!descr.length())
+					break;
+				getline(ais, line1); // 1st line: plain query
+				getline(ais, line2); // 2nd line: w/o previous queries
+				//cout << V(descr) << V(line1) <<endl;
+				boost::trim(line1); boost::trim(line2);
+				vector<string> tmp;
+				boost::split( tmp, line1, boost::is_any_of(","));
+				foreach(const string& s, tmp){
+					unsigned int obs = boost::lexical_cast<int>(s)-1;
+					m(obs,s2+aleph_feat) = 1;
+				}
+				aleph_names.push_back(descr);
+				aleph_feat ++;
+			}
+			* cr.getObsFeatMat()  = m;
+			cout << "done, "<< aleph_feat << " read."<<endl;
+		}
+
+		cr.init_features(aleph_feat, aleph_names);
 
 		ofstream ofs(serfile.string().c_str());
 		boost::archive::binary_oarchive ar(ofs);
 		ar << count;
 		ar << cr;
 	}
+
+
 
 	// this block only for NIPS
 #if 0
@@ -437,8 +494,58 @@ void CODE_data_gen::run(){
 		}
 	}
 
-	cr.load_feat_pos(gCfg().getOutputFile("fea.txt").c_str());
-	cr.load_obs_pos(gCfg().getOutputFile("cla.txt").c_str());
+	if(gCfg().getBool("code.linlog_write")){
+		cout << "Writing Linlog Graph to file..."<<flush;
+		ofstream linlog(gCfg().getOutputFile("code.linlog_graph_out").c_str());
+		CoocReader::matrix_itype& ofm = *cr.getObsFeatMat();
+		CoocReader::matrix_dtype& ffm = *cr.getFeatFeatMat();
+		for(unsigned int i=0;i<ofm.size1(); i++){
+			for(unsigned int j=0;j<ofm.size2(); j++){
+			  if(ofm(i,j)> .001)
+					linlog << j << " " << 100000+i <<" "<< 1.0 <<endl;
+			}
+		}
+		for(unsigned int i=0;i<ffm.size1(); i++){
+			for(unsigned int j=0;j<ffm.size2(); j++){
+			  if(ffm(i,j)> .001)
+					linlog << j << " " << i <<" "<< ffm(i,j) <<endl;
+			}
+		}
+		linlog.close();
+		cout << "done. Exiting. "<<endl<<endl
+		     << "You should now run LinLogLayout from http://code.google.com/p/linloglayout/"<<endl
+				 << "  $  java -Xmx2000m -Xms1000m -cp ../../LinLogLayout/bin LinLogLayout 2 " 
+				      << gCfg().getOutputFile("code.linlog_graph_out") << " "
+							<< gCfg().getOutputFile("code.linlog_pos_in") << endl
+				 << "Afterwards, run erl with --code.linlog_read --code.linlog_pos_in="<<gCfg().getOutputFile("code.linlog_pos_in")<<endl;
+		exit(0);
+	}
+
+	if(gCfg().getBool("code.linlog_read")){
+		cout << "Reading linlog positions..." <<flush;
+	  ifstream linlog(gCfg().getOutputFile("code.linlog_pos_in").c_str());
+		int id;
+		float x,y,z, clus;
+		while(!linlog.eof()){
+			linlog >> id >> x >> y >> z >> clus;
+			if(id >= 100000){
+			  id -= 100000;
+				cout << id << " " << x<< " " << y <<endl;
+				cr.mObsDesc[id].mPos[0]=x;
+				cr.mObsDesc[id].mPos[1]=y;
+			}else{
+				cout << id << " " << x<< " " << y <<endl;
+				cr.mFeaDesc[id].mPos[0]=x;
+				cr.mFeaDesc[id].mPos[1]=y;
+			}
+		}
+		cout << "done."<<endl;
+	} else{
+		cout << "Reading CODE positions..." << flush;
+		cr.load_feat_pos(gCfg().getOutputFile("fea.txt").c_str());
+		cr.load_obs_pos(gCfg().getOutputFile("cla.txt").c_str());
+		cout << "done."<<endl;
+	}
 
 	CoocReader::featpos fp;
 	foreach(feature& f, cr.mFeaDesc){
@@ -582,8 +689,8 @@ void CODE_data_gen::run(){
 		}
 		color = (boost::format(color)%(int)f.mColorFact).str();
 		xml << boost::format(
-				"<node id='%s' ignore='%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d'>")
-			%  f.mId  % f.mIgnore % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 
+				"<node id='%s' ignore='%d' color='%s' size='%1.0f' x='%03.0f' y='%03.0f' objtype='%d' alephfeat='%d' >")
+			%  f.mId  % f.mIgnore % color   % f.mSize   % f.mPos[0] % f.mPos[1] % 1 % f.mAlephFeat
 			<< endl;
 		writeFeaChildren(xml,cr,f.mRunningNumber);
 		xml << "</node>"<<endl;
@@ -624,31 +731,28 @@ void CODE_data_gen::run(){
 	xml << "</data>"<<endl;
 	xml.close();
 
-#if 0
-	ofstream dist_vs_norm("/tmp/dist_vs_norm.dat");
-	ProgressBar pb2a(cr.mFeaDesc.size(),"dist_vs_norm");
-	foreach(feature& f1, cr.mFeaDesc){
-		foreach(feature& f2, cr.mFeaDesc){
-			dist_vs_norm << pow(ublas::norm_2(f1.mPos-f2.mPos),2.0);
-			dist_vs_norm << " ";
-			ublas::matrix_column<CoocReader::matrix_itype> c1(*cr.getObsFeatMat(),f1.mRunningNumber);
-			ublas::matrix_column<CoocReader::matrix_itype> c2(*cr.getObsFeatMat(),f2.mRunningNumber);
-			double c=0;
-			for(unsigned int i=0;i<c1.size();i++) {
-				if(c1[i]>0 && c2[i]>0)
-					c++;
+	if(gCfg().getBool("code.dvc")){
+		ofstream dist_vs_norm(gCfg().getString("code.dvc_file").c_str());
+		ProgressBar pb2a(cr.mFeaDesc.size(),"dist_vs_cooc");
+		foreach(feature& f1, cr.mFeaDesc){
+			foreach(feature& f2, cr.mFeaDesc){
+				dist_vs_norm << pow(ublas::norm_2(f1.mPos-f2.mPos),2.0);
+				dist_vs_norm << " ";
+				ublas::matrix_column<CoocReader::matrix_itype> c1(*cr.getObsFeatMat(),f1.mRunningNumber);
+				ublas::matrix_column<CoocReader::matrix_itype> c2(*cr.getObsFeatMat(),f2.mRunningNumber);
+				double c=0;
+				for(unsigned int i=0;i<c1.size();i++) {
+					if(c1[i]>0 && c2[i]>0)
+						c++;
+				}
+				dist_vs_norm << c;
+				dist_vs_norm << endl;
 			}
-			dist_vs_norm << c;
-			dist_vs_norm << endl;
+			pb2a.inc();
 		}
-		pb2a.inc();
+		pb2a.finish();
+		dist_vs_norm.close();
 	}
-	pb2a.finish();
-	dist_vs_norm.close();
-
-	double loglik = getLogLik(rc,cr);
-	cout << V(loglik)<<endl;
-#endif
 
 
 	int res=0;

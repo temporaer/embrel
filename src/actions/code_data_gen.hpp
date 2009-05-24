@@ -51,6 +51,7 @@ struct feature {
 	float       mFMeasure;
 	float       mSelectCrit2;
 	bool        mIgnore;
+	bool        mAlephFeat;
 
 	template <class Archive>
 	void serialize(Archive&ar, const unsigned int version){
@@ -69,6 +70,7 @@ struct feature {
 		ar & mFMeasure;
 		ar & mSelectCrit;
 		ar & mIgnore;
+		ar & mAlephFeat;
 	}
 };
 
@@ -114,7 +116,7 @@ class CoocReader : public CSVReader{
 		virtual void read_field (const std::string& s, int lidx, int idx, int numfields);
 		virtual ~CoocReader();
 
-		void init_features();
+		void init_features(int aleph_queries, std::vector<std::string>& aleph_names);
 		inline matrix_pitype getObsFeatMat(){return mObsFeatMat;}
 		inline matrix_pdtype getFeatFeatMat(){return mFeatFeatMat;}
 
